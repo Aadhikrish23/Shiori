@@ -1,0 +1,20 @@
+# Global ignores
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Env (important)
+.env
+
+# VS Code / IDE
+.vscode/
+.idea/
+
+# Temp
+tmp/
+temp/

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+*.tsbuildinfo
+
+src/config/token.json
+src/config/credentials.json
+src/storage/token.json
+.env
