@@ -86,7 +86,6 @@ export async function getEmails() {
   const res = await gmail.users.messages.list({
     userId: "me",
     maxResults: 10,
-    q: "is:unread", // 🔥 only new emails
   });
 
   const messages = res.data.messages || [];

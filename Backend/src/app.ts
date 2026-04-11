@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 dotenv.config();
 import emailRoutes from "./routes/emailRoutes";
 import { errorHandler } from "./middlewares/errorHandler";
+import connectMongoose from "./config/mongo";
+
 
 const PORT = process.env.PORT || 3000;
 
@@ -21,6 +23,12 @@ app.get("/",(req:Request,res:Response)=>{
 
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+const startServer = async () => {
+  await connectMongoose();
+  app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+}
+
+startServer();

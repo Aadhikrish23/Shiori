@@ -1,10 +1,19 @@
 from pydantic import BaseModel
+from typing import List
 
-class EmailInput(BaseModel):
+class Label(BaseModel):
+    name: str
+    description: str
+
+class EmailData(BaseModel):
     subject: str
     sender: str
     body: str
 
+class EmailInput(BaseModel):
+    email: EmailData
+    labels: List[Label]
+
 class EmailOutput(BaseModel):
-    category: str
+    label: str
     important: bool
