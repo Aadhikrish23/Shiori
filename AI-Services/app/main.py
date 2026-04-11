@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.schemas.email import EmailInput
 from app.services.classifier import classify_email, classify_emails_batch
+from app.schemas.BatchRequest import BatchRequest
 
 app = FastAPI()
 
@@ -14,5 +15,5 @@ def classify(data: EmailInput):
 
 # 🔥 NEW BATCH ENDPOINT
 @app.post("/ai/email/classify-batch")
-def classify_batch(data: dict):
-    return classify_emails_batch(data)
+async def classify_batch(data: BatchRequest):
+    return await classify_emails_batch(data)

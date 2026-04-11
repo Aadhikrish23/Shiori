@@ -85,7 +85,7 @@ export async function getEmails() {
 
   const res = await gmail.users.messages.list({
     userId: "me",
-    maxResults: 10,
+    maxResults: 24,
   });
 
   const messages = res.data.messages || [];

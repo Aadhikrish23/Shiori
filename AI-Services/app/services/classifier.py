@@ -1,10 +1,12 @@
+import asyncio
 from app.utils.parser import extract_json
-from app.prompts.email_prompt import build_prompt, build_batch_prompt
+from app.prompts.email_classifier import build_prompt, build_batch_prompt
 from app.config.settings import settings
 
 # providers
 from app.providers.ollama import generate as ollama_generate
 from app.providers.openai_provider import generate as openai_generate
+from app.services.summarizer import summarize_email_async
 
 
 # =========================
@@ -39,11 +41,27 @@ def classify_email(data):
 # =========================
 # 🔥 BATCH
 # =========================
-def classify_emails_batch(data):
-    emails = data["emails"]
-    labels = data["labels"]
+async def classify_emails_batch(data):
+    emails = data.emails
+    labels = data.labels
 
-    prompt = build_batch_prompt(emails, labels)
+    compressed_emails = []
+
+    tasks = [summarize_email_async(email) for email in emails]
+    summaries = await asyncio.gather(*tasks)
+
+    compressed_emails = []
+
+    for email, summary_data in zip(emails, summaries):
+        compressed_emails.append({
+            "id": email.get("id"),
+            "summary": summary_data.get("summary", ""),
+            "tags": summary_data.get("tags", "")
+        })
+
+    print("COMPRESSED EMAILS:", compressed_emails)
+
+    prompt = build_batch_prompt(compressed_emails, labels)
 
     raw = call_model(prompt)
 
@@ -55,3 +73,21 @@ def classify_emails_batch(data):
         return []
 
     return parsed
+
+# def classify_emails_batch(data):
+#     emails = data["emails"]
+#
+#     results = []
+#
+#     for email in emails:
+#         summary_data = summarize_email_service(email)
+#
+#         print("SUMMARY RESULT:", summary_data)
+#
+#         results.append({
+#             "id": email.get("id"),
+#             "summary": summary_data.get("summary", ""),
+#             "tags": summary_data.get("tags", "")
+#         })
+#
+#     return results
