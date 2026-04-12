@@ -3,7 +3,9 @@ import path from "path";
 import readline from "readline";
 import { google } from "googleapis";
 import { config } from "../config";
-
+import { Email } from "../types/email";
+import { User } from "../models/user.model";
+import { decrypt } from "../utils/crypto";
 const SCOPES = ["https://www.googleapis.com/auth/gmail.modify"];
 const TOKEN_PATH = path.join(__dirname, "../storage/token.json");
 
@@ -68,20 +70,34 @@ async function authorize() {
 // ==============================
 // 📬 GET GMAIL CLIENT
 // ==============================
-export async function getGmailClient() {
-  if (gmailClient) return gmailClient;
 
-  const auth = await authorize();
-  gmailClient = google.gmail({ version: "v1", auth });
 
-  return gmailClient;
+export async function getGmailClient(userId: string) {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const oAuth2Client = new google.auth.OAuth2(
+    config.gmailClientId,
+    config.gmailClientSecret,
+    config.gmailRedirectUri
+  );
+
+  oAuth2Client.setCredentials({
+    access_token: decrypt(user.accessToken),
+    refresh_token: decrypt(user.refreshToken),
+  });
+
+  return google.gmail({ version: "v1", auth: oAuth2Client });
 }
 
 // ==============================
 // 📥 FETCH EMAILS
 // ==============================
-export async function getEmails() {
-  const gmail = await getGmailClient();
+export async function getEmails(userId: string) {
+  const gmail = await getGmailClient(userId);
 
   const res = await gmail.users.messages.list({
     userId: "me",
@@ -120,12 +136,12 @@ export async function getEmails() {
 // ==============================
 // 🏷️ GET OR CREATE LABEL
 // ==============================
-export async function getOrCreateLabel(labelName: string) {
+export async function getOrCreateLabel(userId:string , labelName: string) {
   if (labelCache[labelName]) {
     return labelCache[labelName];
   }
 
-  const gmail = await getGmailClient();
+  const gmail = await getGmailClient(userId);
 
   const res = await gmail.users.labels.list({
     userId: "me",
@@ -153,8 +169,8 @@ export async function getOrCreateLabel(labelName: string) {
 // ==============================
 // 🏷️ APPLY LABEL
 // ==============================
-export async function applyLabel(messageId: string, labelId: string) {
-  const gmail = await getGmailClient();
+export async function applyLabel(userId:string ,messageId: string, labelId: string) {
+  const gmail = await getGmailClient(userId);
 
   await gmail.users.messages.modify({
     userId: "me",
@@ -168,8 +184,8 @@ export async function applyLabel(messageId: string, labelId: string) {
 // ==============================
 // ⭐ STAR EMAIL
 // ==============================
-export async function starEmail(messageId: string) {
-  const gmail = await getGmailClient();
+export async function starEmail(userId:string ,messageId: string) {
+  const gmail = await getGmailClient(userId);
 
   await gmail.users.messages.modify({
     userId: "me",
@@ -183,8 +199,8 @@ export async function starEmail(messageId: string) {
 // ==============================
 // 📥 ARCHIVE EMAIL
 // ==============================
-export async function archiveEmail(messageId: string) {
-  const gmail = await getGmailClient();
+export async function archiveEmail(userId:string ,messageId: string) {
+  const gmail = await getGmailClient(userId);
 
   await gmail.users.messages.modify({
     userId: "me",

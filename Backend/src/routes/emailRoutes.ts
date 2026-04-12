@@ -1,10 +1,8 @@
 import { Router } from "express";
-import {  processEmails } from "../controllers/emailController";
+import { processUserEmails } from "../controllers/emailController";
 
 const router = Router();
 
-
-
-router.get("/process", processEmails);
+router.post("/process-user", processUserEmails);
 
 export default router;

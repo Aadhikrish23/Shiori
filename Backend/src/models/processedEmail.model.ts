@@ -1,17 +1,20 @@
 import mongoose from "mongoose";
 
 interface ProcessedEmail extends mongoose.Document {
-  messageId: string
-  category: string
-  processedAt: Date
+  userId: string;
+  messageId: string;
+  category: string;
+  processedAt: Date;
 }
 
-
 const processedEmailSchema = new mongoose.Schema<ProcessedEmail>({
+  userId: {
+    type: String,
+    required: true,
+  },
   messageId: {
     type: String,
     required: true,
-    unique: true, // 🔥 prevents duplicates
   },
   category: {
     type: String,
@@ -21,6 +24,9 @@ const processedEmailSchema = new mongoose.Schema<ProcessedEmail>({
     default: Date.now,
   },
 });
+
+// 🔥 prevent duplicate per user
+processedEmailSchema.index({ userId: 1, messageId: 1 }, { unique: true });
 
 export const ProcessedEmail = mongoose.model(
   "ProcessedEmail",

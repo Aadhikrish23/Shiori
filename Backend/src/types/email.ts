@@ -34,3 +34,9 @@ export interface BatchEmailOutput {
   label: string;
   important: boolean;
 }
+export interface Email {
+  id: string;
+  subject: string;
+  sender: string;
+  snippet: string;
+}

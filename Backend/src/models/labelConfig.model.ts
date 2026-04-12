@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 
-interface labelConfig extends mongoose.Document{
-    name:string;
-    description:string
+export interface ILabelConfig extends mongoose.Document {
+  name: string;
+  description: string;
 }
 
-const labelConfigSchema = new mongoose.Schema<labelConfig>({
+const labelConfigSchema = new mongoose.Schema<ILabelConfig>({
   name: {
     type: String,
     required: true,
@@ -17,7 +17,7 @@ const labelConfigSchema = new mongoose.Schema<labelConfig>({
   },
 });
 
-export const LabelConfig = mongoose.model(
+export const LabelConfig = mongoose.model<ILabelConfig>(
   "LabelConfig",
   labelConfigSchema
 );
