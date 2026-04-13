@@ -25,7 +25,7 @@ export interface BatchEmailInput {
   }[];
   labels: {
     name: string;
-    description: string;
+    tags: string[];
   }[];
 }
 

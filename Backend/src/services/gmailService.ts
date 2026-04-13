@@ -137,21 +137,31 @@ export async function getEmails(userId: mongoose.Schema.Types.ObjectId) {
 // ==============================
 // 🏷️ GET OR CREATE LABEL
 // ==============================
-export async function getOrCreateLabel(userId:mongoose.Schema.Types.ObjectId , labelName: string) {
-  if (labelCache[labelName]) {
-    return labelCache[labelName];
-  }
-
+export const getOrCreateLabel = async (
+  userId: any,
+  labelName: string
+): Promise<string | null> => {
   const gmail = await getGmailClient(userId);
 
+  // 🔹 Step 1: Get all labels
   const res = await gmail.users.labels.list({
     userId: "me",
   });
 
-  let label = res.data.labels?.find((l: any) => l.name === labelName);
+  const existingLabels = res.data.labels || [];
 
-  if (!label) {
-    const newLabel = await gmail.users.labels.create({
+  // 🔹 Step 2: Check if label exists
+  const found = existingLabels.find(
+    (l) => l.name?.toLowerCase() === labelName.toLowerCase()
+  );
+
+  if (found) {
+    return found.id!;
+  }
+
+  // 🔹 Step 3: Create if not exists
+  try {
+    const created = await gmail.users.labels.create({
       userId: "me",
       requestBody: {
         name: labelName,
@@ -160,12 +170,24 @@ export async function getOrCreateLabel(userId:mongoose.Schema.Types.ObjectId , l
       },
     });
 
-    label = newLabel.data;
-  }
+    return created.data.id!;
+  } catch (err: any) {
+    // 🔥 Fallback (race condition protection)
+    if (err.code === 409) {
+      const retry = await gmail.users.labels.list({
+        userId: "me",
+      });
 
-  labelCache[labelName] = label.id!;
-  return label.id!;
-}
+      const retryFound = retry.data.labels?.find(
+        (l) => l.name?.toLowerCase() === labelName.toLowerCase()
+      );
+
+      return retryFound?.id || null;
+    }
+
+    throw err;
+  }
+};
 
 // ==============================
 // 🏷️ APPLY LABEL

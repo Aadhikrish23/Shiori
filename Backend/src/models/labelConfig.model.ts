@@ -1,20 +1,13 @@
-import mongoose from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
 
-export interface ILabelConfig extends mongoose.Document {
+export interface ILabelConfig extends Document {
   name: string;
-  description: string;
+  tags: string[];
 }
 
-const labelConfigSchema = new mongoose.Schema<ILabelConfig>({
-  name: {
-    type: String,
-    required: true,
-    unique: true,
-  },
-  description: {
-    type: String,
-    required: true,
-  },
+const labelConfigSchema = new Schema<ILabelConfig>({
+  name: { type: String, required: true, lowercase: true },
+  tags: { type: [String], default: [] },
 });
 
 export const LabelConfig = mongoose.model<ILabelConfig>(

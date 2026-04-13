@@ -11,6 +11,7 @@ import { startScheduler } from "./cron/scheduler";
 
 // Queue system
 import "./queue/worker"; // just import to start worker
+import tagRoutes from "./routes/tag.routes";
 
 const PORT = process.env.PORT || 3000;
 
@@ -20,6 +21,7 @@ app.use(express.json());
 
 app.use("/email", emailRoutes);
 app.use("/auth",authRoutes);
+app.use("/tags", tagRoutes);
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Server is working...🥳🥳");

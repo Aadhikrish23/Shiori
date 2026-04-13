@@ -20,7 +20,7 @@ interface JobParams {
   userId: mongoose.Schema.Types.ObjectId;
   startTime?: Date;
   endTime?: Date;
-   includeProcessed?: boolean;
+  includeProcessed?: boolean;
 }
 
 function normalizeLabel(label: string) {
@@ -39,14 +39,14 @@ export const processEmailsJob = async ({
   userId,
   startTime: startTimeParam,
   endTime: endTimeParam,
-  includeProcessed:includeProcessed
-
+  includeProcessed: includeProcessed,
 }: JobParams) => {
   console.log(`🚀 Processing emails for user: ${userId}`);
 
   try {
     const endTime = endTimeParam || new Date();
-    const startTime = startTimeParam || new Date(endTime.getTime() - 5 * 60 * 1000);
+    const startTime =
+      startTimeParam || new Date(endTime.getTime() - 5 * 60 * 1000);
 
     console.log(`⏱️ Time range: ${startTime} → ${endTime}`);
 
@@ -79,17 +79,17 @@ export const processEmailsJob = async ({
       labels.map((l) => [l.name.trim().toLowerCase(), l]),
     );
 
-  let emailsToProcess = emails;
+    let emailsToProcess = emails;
 
-if (!includeProcessed) {
-  const processedChecks = await Promise.all(
-    emails.map((email) => isProcessed(userId, email.id))
-  );
+    if (!includeProcessed) {
+      const processedChecks = await Promise.all(
+        emails.map((email) => isProcessed(userId, email.id)),
+      );
 
-  emailsToProcess = emails.filter((_, i) => !processedChecks[i]);
-}
+      emailsToProcess = emails.filter((_, i) => !processedChecks[i]);
+    }
 
-console.log("🧹 Emails to process:", emailsToProcess.length);
+    console.log("🧹 Emails to process:", emailsToProcess.length);
 
     if (!emailsToProcess.length) {
       console.log("📭 No new emails");
@@ -111,7 +111,7 @@ console.log("🧹 Emails to process:", emailsToProcess.length);
         })),
         labels: labels.map((l) => ({
           name: l.name,
-          description: l.description,
+          tags: l.tags,
         })),
       });
 
