@@ -7,6 +7,7 @@ import { errorHandler } from "./middlewares/errorHandler";
 import connectMongoose from "./config/mongo";
 import { connectRedis } from "./config/redis";
 import authRoutes from "./routes/authRoutes"
+import { startScheduler } from "./cron/scheduler";
 
 // Queue system
 import "./queue/worker"; // just import to start worker
@@ -31,7 +32,11 @@ const startServer = async () => {
   await connectRedis();
 
   app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
+
+    // 🔥 Start scheduler AFTER server ready
+    startScheduler();
+    console.log("🟢 Scheduler started...");
   });
 };
 

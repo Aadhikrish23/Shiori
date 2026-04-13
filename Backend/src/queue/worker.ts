@@ -1,22 +1,42 @@
 import { Worker } from "bullmq";
 import { redisConnection } from "./connection";
 import { processEmailsJob } from "../jobs/processEmailsJob";
+import { User } from "../models/user.model";
+
 console.log("🔥 Worker started...");
 
 export const emailWorker = new Worker(
   "email-processing",
   async (job) => {
-    console.log("🔥 Worker picked a job"); // 👈 ADD THIS FIRST
+    console.log("🔥 Worker picked a job");
 
     if (job.name === "process-user-emails") {
-      const { userId } = job.data;
+     const { userId, startTime, endTime, includeProcessed } = job.data;
 
       console.log(`👤 Processing user: ${userId}`);
-      console.log(`🆔 Job ID: ${job.id}`);
+      console.log(`⏱️ Range: ${startTime} → ${endTime}`);
 
-      await processEmailsJob({ userId });
+      try {
+        // ✅ PASS FULL DATA
+        await processEmailsJob({
+          userId,
+          startTime: new Date(startTime),
+          endTime: new Date(endTime),
+          includeProcessed,
+        });
 
-      console.log(`✅ Finished user: ${userId}`);
+        console.log(`✅ Finished user: ${userId}`);
+
+      } catch (err) {
+        console.error("❌ Job failed inside worker:", err);
+        throw err; // 🔥 enables retry
+      } finally {
+        // ✅ ALWAYS reset + update lastRunAt
+        await User.findByIdAndUpdate(userId, {
+          "schedule.isRunning": false,
+          "schedule.lastRunAt": new Date(),
+        });
+      }
     }
   },
   {
@@ -25,14 +45,14 @@ export const emailWorker = new Worker(
   }
 );
 
-// 🔥 ADD THESE (CRITICAL)
+// ==============================
+// 🔥 EVENTS
+// ==============================
+
 emailWorker.on("completed", (job) => {
   console.log(`🎉 Job completed: ${job.id}`);
 });
 
 emailWorker.on("failed", (job, err) => {
   console.error(`❌ Job failed: ${job?.id}`, err.message);
-});
-emailWorker.on("failed", (job, err) => {
-  console.error("❌ Job failed HARD:", err);
 });

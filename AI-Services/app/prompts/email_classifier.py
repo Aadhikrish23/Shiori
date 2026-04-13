@@ -32,24 +32,32 @@ def build_batch_prompt(emails, labels):
         [f"{l['name']}: {l['description']}" for l in labels]
     )
 
-    emails_text = "\n".join([
-        f"{e['id']}|{e['summary'][:120]}|{', '.join(e['tags'].split(',')[:4])}"
+    emails_text = "\n\n".join([
+        f"""
+ID: {e['id']}
+Subject: {e['subject']}
+From: {e['sender']}
+Body: {e['body'][:300]}
+"""
         for e in emails
     ])
 
     return f"""
-Classify each email using ONE label.
+You are an email classification system.
+
+Classify each email into EXACTLY ONE label.
 
 Labels:
 {labels_text}
 
 Rules:
-- Use label descriptions only
-- One label per email
+- Only use given labels
 - No explanations
+- Be accurate
+- Return STRICT JSON
 
-Return JSON array only:
-[{{"id":"...","label":"...","important":false}}]
+Return format:
+[{{"id":"...","label":"...","important":true/false}}]
 
 Emails:
 {emails_text}

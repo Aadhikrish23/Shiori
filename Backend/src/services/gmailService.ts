@@ -6,6 +6,7 @@ import { config } from "../config";
 import { Email } from "../types/email";
 import { User } from "../models/user.model";
 import { decrypt } from "../utils/crypto";
+import mongoose from "mongoose";
 const SCOPES = ["https://www.googleapis.com/auth/gmail.modify"];
 const TOKEN_PATH = path.join(__dirname, "../storage/token.json");
 
@@ -72,7 +73,7 @@ async function authorize() {
 // ==============================
 
 
-export async function getGmailClient(userId: string) {
+export async function getGmailClient(userId: mongoose.Schema.Types.ObjectId) {
   const user = await User.findById(userId);
 
   if (!user) {
@@ -96,7 +97,7 @@ export async function getGmailClient(userId: string) {
 // ==============================
 // 📥 FETCH EMAILS
 // ==============================
-export async function getEmails(userId: string) {
+export async function getEmails(userId: mongoose.Schema.Types.ObjectId) {
   const gmail = await getGmailClient(userId);
 
   const res = await gmail.users.messages.list({
@@ -136,7 +137,7 @@ export async function getEmails(userId: string) {
 // ==============================
 // 🏷️ GET OR CREATE LABEL
 // ==============================
-export async function getOrCreateLabel(userId:string , labelName: string) {
+export async function getOrCreateLabel(userId:mongoose.Schema.Types.ObjectId , labelName: string) {
   if (labelCache[labelName]) {
     return labelCache[labelName];
   }
@@ -169,7 +170,7 @@ export async function getOrCreateLabel(userId:string , labelName: string) {
 // ==============================
 // 🏷️ APPLY LABEL
 // ==============================
-export async function applyLabel(userId:string ,messageId: string, labelId: string) {
+export async function applyLabel(userId:mongoose.Schema.Types.ObjectId ,messageId: string, labelId: string) {
   const gmail = await getGmailClient(userId);
 
   await gmail.users.messages.modify({
@@ -184,7 +185,7 @@ export async function applyLabel(userId:string ,messageId: string, labelId: stri
 // ==============================
 // ⭐ STAR EMAIL
 // ==============================
-export async function starEmail(userId:string ,messageId: string) {
+export async function starEmail(userId:mongoose.Schema.Types.ObjectId ,messageId: string) {
   const gmail = await getGmailClient(userId);
 
   await gmail.users.messages.modify({
@@ -199,7 +200,7 @@ export async function starEmail(userId:string ,messageId: string) {
 // ==============================
 // 📥 ARCHIVE EMAIL
 // ==============================
-export async function archiveEmail(userId:string ,messageId: string) {
+export async function archiveEmail(userId:mongoose.Schema.Types.ObjectId ,messageId: string) {
   const gmail = await getGmailClient(userId);
 
   await gmail.users.messages.modify({
@@ -209,4 +210,48 @@ export async function archiveEmail(userId:string ,messageId: string) {
       removeLabelIds: ["INBOX"],
     },
   });
+}
+
+export async function getEmailsByTimeRange(
+  userId: mongoose.Schema.Types.ObjectId,
+  start: Date,
+  end: Date
+) {
+  const gmail = await getGmailClient(userId);
+
+  const after = Math.floor(start.getTime() / 1000);
+  const before = Math.floor(end.getTime() / 1000);
+
+  const res = await gmail.users.messages.list({
+    userId: "me",
+    q: `after:${after} before:${before}`,
+    maxResults: 100, // still safe
+  });
+
+  const messages = res.data.messages || [];
+  const emails = [];
+
+  for (const msg of messages) {
+    const full = await gmail.users.messages.get({
+      userId: "me",
+      id: msg.id!,
+    });
+
+    const headers = full.data.payload?.headers;
+
+    const subject =
+      headers?.find((h: any) => h.name === "Subject")?.value || "";
+
+    const from =
+      headers?.find((h: any) => h.name === "From")?.value || "";
+
+    emails.push({
+      id: msg.id!,
+      subject,
+      sender: from,
+      snippet: full.data.snippet || "",
+    });
+  }
+
+  return emails;
 }

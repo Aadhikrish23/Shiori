@@ -5,6 +5,7 @@ import {
   applyLabel,
   archiveEmail,
   getEmails,
+  getEmailsByTimeRange,
   getOrCreateLabel,
   starEmail,
 } from "../services/gmailService";
@@ -13,9 +14,13 @@ import {
   isProcessed,
   markAsProcessed,
 } from "../repositories/processedEmailRepo";
+import mongoose from "mongoose";
 
 interface JobParams {
-  userId: string;
+  userId: mongoose.Schema.Types.ObjectId;
+  startTime?: Date;
+  endTime?: Date;
+   includeProcessed?: boolean;
 }
 
 function normalizeLabel(label: string) {
@@ -30,11 +35,26 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
   return result;
 }
 
-export const processEmailsJob = async ({ userId }: JobParams) => {
+export const processEmailsJob = async ({
+  userId,
+  startTime: startTimeParam,
+  endTime: endTimeParam,
+  includeProcessed:includeProcessed
+
+}: JobParams) => {
   console.log(`🚀 Processing emails for user: ${userId}`);
 
   try {
-    const emails: Email[] = await getEmails(userId);
+    const endTime = endTimeParam || new Date();
+    const startTime = startTimeParam || new Date(endTime.getTime() - 5 * 60 * 1000);
+
+    console.log(`⏱️ Time range: ${startTime} → ${endTime}`);
+
+    const emails: Email[] = await getEmailsByTimeRange(
+      userId,
+      startTime,
+      endTime,
+    );
     const labels: ILabelConfig[] = await getAllLabels();
 
     console.log("📨 Total emails:", emails.length);
@@ -56,23 +76,27 @@ export const processEmailsJob = async ({ userId }: JobParams) => {
     }
 
     const labelMap = new Map(
-      labels.map((l) => [l.name.trim().toLowerCase(), l])
+      labels.map((l) => [l.name.trim().toLowerCase(), l]),
     );
 
-    const processedChecks = await Promise.all(
-      emails.map((email) => isProcessed(userId, email.id))
-    );
+  let emailsToProcess = emails;
 
-    const unprocessedEmails = emails.filter((_, i) => !processedChecks[i]);
+if (!includeProcessed) {
+  const processedChecks = await Promise.all(
+    emails.map((email) => isProcessed(userId, email.id))
+  );
 
-    console.log("🧹 Unprocessed emails:", unprocessedEmails.length);
+  emailsToProcess = emails.filter((_, i) => !processedChecks[i]);
+}
 
-    if (!unprocessedEmails.length) {
+console.log("🧹 Emails to process:", emailsToProcess.length);
+
+    if (!emailsToProcess.length) {
       console.log("📭 No new emails");
       return;
     }
 
-    const batches = chunkArray(unprocessedEmails, 12);
+    const batches = chunkArray(emailsToProcess, 12);
 
     for (const batch of batches) {
       console.log(`📦 Batch size: ${batch.length}`);

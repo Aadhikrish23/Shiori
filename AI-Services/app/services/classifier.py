@@ -45,19 +45,15 @@ async def classify_emails_batch(data):
     emails = data.emails
     labels = data.labels
 
-    compressed_emails = []
-
-    tasks = [summarize_email_async(email) for email in emails]
-    summaries = await asyncio.gather(*tasks)
-
-    compressed_emails = []
-
-    for email, summary_data in zip(emails, summaries):
-        compressed_emails.append({
+    compressed_emails = [
+        {
             "id": email.get("id"),
-            "summary": summary_data.get("summary", ""),
-            "tags": summary_data.get("tags", "")
-        })
+            "subject": email.get("subject"),
+            "sender": email.get("sender"),
+            "body": email.get("body")[:500]  # 🔥 limit size
+        }
+        for email in emails
+    ]
 
     print("COMPRESSED EMAILS:", compressed_emails)
 
