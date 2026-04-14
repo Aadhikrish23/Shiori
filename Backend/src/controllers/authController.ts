@@ -19,9 +19,22 @@ export const googleCallback = async (req: Request, res: Response) => {
 
     const user = await handleGoogleCallback(code);
 
-    res.send(`✅ Logged in as ${user.email}`);
+    (req as any).session.user = {
+      id: user._id,
+      email: user.email,
+    };
+    console.log("USER:",user);
+
+    res.redirect("http://localhost:5173/dashboard");
   } catch (err) {
     console.error(err);
     res.status(500).send("OAuth failed");
   }
+};
+export const getMe = (req: any, res: Response) => {
+  if (!req.session || !req.session.user) {
+    return res.status(401).json({ user: null });
+  }
+
+  res.json({ user: req.session.user });
 };

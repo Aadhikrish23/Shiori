@@ -1,17 +1,21 @@
 import { LabelConfig, ILabelConfig } from "../models/labelConfig.model";
 import { TagLibrary } from "../models/tagLibrary.model";
 
-// 🔹 Get all labels
-export const getAllLabels = async (): Promise<ILabelConfig[]> => {
-  return await LabelConfig.find();
+// 🔹 Get all labels (USER SCOPED)
+export const getAllLabels = async (
+  userId: string
+): Promise<ILabelConfig[]> => {
+  return await LabelConfig.find({ userId });
 };
 
 // 🔹 Create label
 export const createLabel = async (
+  userId: string,
   name: string,
   tags: string[]
 ): Promise<ILabelConfig> => {
   const label = await LabelConfig.create({
+    userId,
     name: name.toLowerCase(),
     tags: tags.map((t) => t.toLowerCase()),
   });
@@ -23,12 +27,13 @@ export const createLabel = async (
 
 // 🔹 Update label
 export const updateLabel = async (
+  userId: string,
   id: string,
   name: string,
   tags: string[]
 ): Promise<ILabelConfig | null> => {
-  const label = await LabelConfig.findByIdAndUpdate(
-    id,
+  const label = await LabelConfig.findOneAndUpdate(
+    { _id: id, userId },
     {
       name: name.toLowerCase(),
       tags: tags.map((t) => t.toLowerCase()),
@@ -44,12 +49,11 @@ export const updateLabel = async (
 };
 
 // 🔹 Delete label
-export const deleteLabel = async (id: string) => {
-  return await LabelConfig.findByIdAndDelete(id);
+export const deleteLabel = async (userId: string, id: string) => {
+  return await LabelConfig.findOneAndDelete({ _id: id, userId });
 };
 
-
-// 🔥 CORE: Tag Library Updater
+// 🔥 Tag Library Updater (NO CHANGE)
 const updateTagLibrary = async (keyword: string, tags: string[]) => {
   const normalizedKeyword = keyword.toLowerCase();
 

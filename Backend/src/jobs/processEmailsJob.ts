@@ -55,7 +55,7 @@ export const processEmailsJob = async ({
       startTime,
       endTime,
     );
-    const labels: ILabelConfig[] = await getAllLabels();
+    const labels: ILabelConfig[] = await getAllLabels(userId.toString());
 
     console.log("📨 Total emails:", emails.length);
 

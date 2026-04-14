@@ -9,6 +9,7 @@ export const getTagSuggestions = async (keyword: string) => {
 
   return doc.tags
     .sort((a, b) => b.count - a.count)
+    .slice(0, 8) 
     .map((t) => t.tag);
 };
 
