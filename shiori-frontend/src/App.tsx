@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Labels from "./pages/Labels";
-import Emails from "./pages/Emails";
+import Emails from "./pages/Processing";
 import Settings from "./pages/Settings";
 import { useState, useEffect } from "react";
 import API from "./services/api";

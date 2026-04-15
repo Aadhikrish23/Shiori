@@ -1,12 +1,14 @@
 import { NextFunction, Request, Response } from "express";
 import { emailQueue } from "../queue/emailQueue";
+import { getEmailStats } from "../repositories/processedEmailRepo";
 
-export const processUserEmails = async (req: Request, res: Response) => {
-  const { userId } = req.body;
+// 🔥 PROCESS DEFAULT (cron/manual trigger)
+export const processUserEmails = async (req: any, res: Response) => {
+  const userId = req.user?.id;
 
   if (!userId) {
-    return res.status(400).json({
-      error: "userId is required",
+    return res.status(401).json({
+      error: "Unauthorized",
     });
   }
 
@@ -14,23 +16,28 @@ export const processUserEmails = async (req: Request, res: Response) => {
     "process-user-emails",
     { userId },
     {
-      jobId: `user-${userId}`, // prevents duplicate jobs
+      jobId: `user-${userId}`, // prevent duplicate
     }
   );
 
   res.json({ message: "User job added" });
 };
 
-export const processCustomRange = async (req: Request, res: Response ,next:NextFunction) => {
+// 🔥 PROCESS CUSTOM RANGE
+export const processCustomRange = async (
+  req: any,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const {
-      userId,
-      startDate,
-      endDate,
-      includeProcessed = false,
-    } = req.body;
+    const userId = req.user?.id;
+    const { startDate, endDate, includeProcessed = false } = req.body;
 
-    if (!userId || !startDate || !endDate) {
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (!startDate || !endDate) {
       return res.status(400).json({
         message: "Missing required fields",
       });
@@ -48,13 +55,34 @@ export const processCustomRange = async (req: Request, res: Response ,next:NextF
         includeProcessed,
       },
       {
-        jobId: `manual-${userId}-${Date.now()}`, // unique
+        jobId: `manual-${userId}-${Date.now()}`,
       }
     );
 
     res.json({
       message: "Custom processing job added",
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// 🔥 STATS
+export const getEmailStatsController = async (
+  req: any,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const stats = await getEmailStats(userId);
+
+    res.json(stats);
   } catch (err) {
     next(err);
   }

@@ -9,7 +9,7 @@ export const googleLogin = (req: Request, res: Response) => {
   res.redirect(url);
 };
 
-export const googleCallback = async (req: Request, res: Response) => {
+export const googleCallback = async (req: any, res: Response) => {
   try {
     const code = req.query.code as string;
 
@@ -19,13 +19,23 @@ export const googleCallback = async (req: Request, res: Response) => {
 
     const user = await handleGoogleCallback(code);
 
-    (req as any).session.user = {
-      id: user._id,
+    req.session.user = {
+      id: user._id.toString(), // 🔥 IMPORTANT (string)
       email: user.email,
     };
-    console.log("USER:",user);
 
-    res.redirect("http://localhost:5173/dashboard");
+    console.log("SESSION SET:", req.session.user);
+
+    // 🔥 FORCE SAVE BEFORE REDIRECT
+    req.session.save((err: any) => {
+      if (err) {
+        console.error("Session save error:", err);
+        return res.status(500).send("Session error");
+      }
+
+      res.redirect("http://localhost:5173/dashboard");
+    });
+
   } catch (err) {
     console.error(err);
     res.status(500).send("OAuth failed");

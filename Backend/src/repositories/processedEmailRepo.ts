@@ -27,3 +27,27 @@ export const markAsProcessed = async (
     { upsert: true } // 🔥 no duplicate crash
   );
 };
+
+export const getEmailStats = async (
+  userId: mongoose.Schema.Types.ObjectId
+) => {
+  const totalProcessed = await ProcessedEmail.countDocuments({ userId });
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const processedToday = await ProcessedEmail.countDocuments({
+    userId,
+    processedAt: { $gte: todayStart },
+  });
+
+  const lastProcessed = await ProcessedEmail.findOne({ userId })
+    .sort({ processedAt: -1 })
+    .select("processedAt");
+
+  return {
+    totalProcessed,
+    processedToday,
+    lastProcessedAt: lastProcessed?.processedAt || null,
+  };
+};
