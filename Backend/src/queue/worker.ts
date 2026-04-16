@@ -11,14 +11,14 @@ export const emailWorker = new Worker(
     console.log("🔥 Worker picked a job");
 
     if (job.name === "process-user-emails") {
-     const { userId, startTime, endTime, includeProcessed } = job.data;
+      const { userId, startTime, endTime, includeProcessed } = job.data;
 
       console.log(`👤 Processing user: ${userId}`);
       console.log(`⏱️ Range: ${startTime} → ${endTime}`);
 
       try {
         // ✅ PASS FULL DATA
-        await processEmailsJob({
+        const result = await processEmailsJob({
           userId,
           startTime: new Date(startTime),
           endTime: new Date(endTime),
@@ -26,7 +26,12 @@ export const emailWorker = new Worker(
         });
 
         console.log(`✅ Finished user: ${userId}`);
-
+        if (result?.processedCount > 0) {
+          await User.findByIdAndUpdate(userId, {
+            "schedule.lastProcessedAt": new Date(),
+            "schedule.lastProcessedCount": result.processedCount,
+          });
+        }
       } catch (err) {
         console.error("❌ Job failed inside worker:", err);
         throw err; // 🔥 enables retry
@@ -42,7 +47,7 @@ export const emailWorker = new Worker(
   {
     connection: redisConnection,
     concurrency: 1,
-  }
+  },
 );
 
 // ==============================

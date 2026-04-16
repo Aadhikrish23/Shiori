@@ -87,3 +87,24 @@ export const getEmailStatsController = async (
     next(err);
   }
 };
+import { getDashboardStats } from "../repositories/processedEmailRepo";
+
+export const getDashboardController = async (
+  req: any,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const data = await getDashboardStats(userId);
+
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};

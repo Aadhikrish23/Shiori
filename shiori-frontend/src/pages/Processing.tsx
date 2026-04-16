@@ -2,6 +2,7 @@ import Layout from "../components/layout/Layout";
 import { useEffect, useState } from "react";
 import { useEmailStore } from "../store/emailStore";
 import ProcessModal from "../components/processing/ProcessModal";
+import { saveSchedule, getSchedule } from "../services/scheduleService";
 
 const Processing = () => {
   const { stats, loading, fetchStats } = useEmailStore();
@@ -14,43 +15,97 @@ const Processing = () => {
   const [unit, setUnit] = useState<"minutes" | "hours">("minutes");
   const [value, setValue] = useState(5);
   const [dailyInterval, setDailyInterval] = useState(1);
-  const [time, setTime] = useState("");
+  const [time, setTime] = useState("09:00");
 
-  const isDisabled = !enabled;
+  const [saving, setSaving] = useState(false);
+  const [initialized, setInitialized] = useState(false); // 🔥 VERY IMPORTANT
 
   useEffect(() => {
     fetchStats();
+
+    const loadSchedule = async () => {
+      try {
+        const data = await getSchedule();
+
+        if (!data) return;
+
+        setEnabled(data.enabled);
+        setMode(data.type);
+
+        if (data.type === "interval") {
+          if (data.intervalMinutes >= 60) {
+            setUnit("hours");
+            setValue(data.intervalMinutes / 60);
+          } else {
+            setUnit("minutes");
+            setValue(data.intervalMinutes);
+          }
+        }
+
+        if (data.type === "daily") {
+          setDailyInterval(data.dailyInterval || 1);
+          setTime(data.dailyTime || "09:00");
+        }
+      } catch (err) {
+        console.error("Failed to load schedule", err);
+      } finally {
+        setInitialized(true); // 🔥 allow autosave AFTER load
+      }
+    };
+
+    loadSchedule();
+
+    const interval = setInterval(() => {
+      // Optional optimization: only refresh when tab is active
+      if (document.visibilityState === "visible") {
+        fetchStats();
+      }
+    }, 5000); // every 5 sec
+
+    return () => clearInterval(interval);
   }, []);
 
-  const handleSaveAutomation = () => {
+  // ==============================
+  // 🔥 AUTO SAVE (SAFE)
+  // ==============================
+  useEffect(() => {
+    if (!initialized) return; // ❗ prevent initial overwrite
+
     if (!enabled) {
-      alert("Enable automation first");
+      saveSchedule({ enabled: false });
       return;
     }
 
-    if (mode === "interval") {
-      if (unit === "minutes" && value < 5) {
-        alert("Minimum is 5 minutes");
-        return;
+    const timeout = setTimeout(async () => {
+      try {
+        setSaving(true);
+
+        let payload: any = {
+          enabled,
+          type: mode,
+        };
+
+        if (mode === "interval") {
+          payload.intervalMinutes = unit === "hours" ? value * 60 : value;
+        }
+
+        if (mode === "daily") {
+          payload.dailyInterval = dailyInterval;
+          payload.dailyTime = time;
+        }
+
+        await saveSchedule(payload);
+      } catch (err) {
+        console.error("Auto save failed", err);
+      } finally {
+        setSaving(false);
       }
-    }
+    }, 500);
 
-    if (mode === "daily" && !time) {
-      alert("Please select time for daily schedule");
-      return;
-    }
+    return () => clearTimeout(timeout);
+  }, [enabled, mode, unit, value, dailyInterval, time, initialized]);
 
-    console.log({
-      enabled,
-      mode,
-      unit,
-      value,
-      dailyInterval,
-      time,
-    });
-
-    alert("Automation settings saved (backend next)");
-  };
+  const isDisabled = !enabled;
 
   return (
     <Layout>
@@ -75,15 +130,23 @@ const Processing = () => {
 
           <div className="bg-white p-4 rounded shadow">
             <p className="text-gray-500">Last Run</p>
+
             <h2 className="text-sm font-medium">
-              {stats?.lastProcessedAt
-                ? new Date(stats.lastProcessedAt).toLocaleString()
+              {stats?.lastRunAt
+                ? new Date(stats.lastRunAt).toLocaleString()
                 : "Never"}
             </h2>
+
+            {stats?.lastActivityAt && (
+              <p className="text-xs text-gray-500 mt-1">
+                Last Activity: Processed {stats.lastActivityCount} emails at{" "}
+                {new Date(stats.lastActivityAt).toLocaleString()}
+              </p>
+            )}
           </div>
         </div>
 
-        {/* ⚙️ ACTION */}
+        {/* ⚙️ PROCESS */}
         <div className="bg-white p-4 rounded shadow">
           <button
             onClick={() => setOpenModal(true)}
@@ -97,7 +160,7 @@ const Processing = () => {
         <div className="bg-white p-5 rounded shadow space-y-5">
           <h2 className="font-semibold text-lg">Automation</h2>
 
-          {/* Enable */}
+          {/* ENABLE */}
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -105,22 +168,23 @@ const Processing = () => {
               onChange={(e) => setEnabled(e.target.checked)}
             />
             <span>Enable automation</span>
+
+            {saving && (
+              <span className="text-sm text-gray-400 ml-2">Saving...</span>
+            )}
           </div>
 
-          {/* Disabled wrapper */}
           <div
             className={`space-y-4 ${
               isDisabled ? "opacity-50 pointer-events-none" : ""
             }`}
           >
-            {/* Mode */}
+            {/* MODE */}
             <div className="flex gap-3">
               <button
                 onClick={() => setMode("interval")}
                 className={`px-3 py-1 rounded ${
-                  mode === "interval"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200"
+                  mode === "interval" ? "bg-blue-600 text-white" : "bg-gray-200"
                 }`}
               >
                 Interval
@@ -129,9 +193,7 @@ const Processing = () => {
               <button
                 onClick={() => setMode("daily")}
                 className={`px-3 py-1 rounded ${
-                  mode === "daily"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200"
+                  mode === "daily" ? "bg-blue-600 text-white" : "bg-gray-200"
                 }`}
               >
                 Daily
@@ -187,9 +249,7 @@ const Processing = () => {
                     type="number"
                     min={1}
                     value={dailyInterval}
-                    onChange={(e) =>
-                      setDailyInterval(Number(e.target.value))
-                    }
+                    onChange={(e) => setDailyInterval(Number(e.target.value))}
                     className="border p-2 rounded w-20"
                   />
 
@@ -204,22 +264,11 @@ const Processing = () => {
                 />
               </div>
             )}
-
-            {/* SAVE */}
-            <button
-              onClick={handleSaveAutomation}
-              className="bg-green-600 text-white px-4 py-2 rounded"
-            >
-              Save Automation
-            </button>
           </div>
         </div>
       </div>
 
-      <ProcessModal
-        open={openModal}
-        onClose={() => setOpenModal(false)}
-      />
+      <ProcessModal open={openModal} onClose={() => setOpenModal(false)} />
     </Layout>
   );
 };

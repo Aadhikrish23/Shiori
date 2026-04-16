@@ -16,6 +16,7 @@ import { startScheduler } from "./cron/scheduler";
 import "./queue/worker"; // just import to start worker
 import tagRoutes from "./routes/tag.routes";
 import labelConfigRoutes from "./routes/labelConfig.routes";
+import scheduleRoutes from "./routes/schedule.routes";
 
 const PORT = process.env.PORT || 3000;
 
@@ -44,6 +45,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/tags",requireAuth, tagRoutes);
 
 app.use("/api/labels",requireAuth, labelConfigRoutes);
+app.use("/api/schedule",requireAuth, scheduleRoutes);
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Server is working...🥳🥳");

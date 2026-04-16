@@ -45,9 +45,52 @@ export const getEmailStats = async (
     .sort({ processedAt: -1 })
     .select("processedAt");
 
+  // 🔥 GET USER SCHEDULE
+  const user = await mongoose.model("User").findById(userId).select("schedule");
+
   return {
     totalProcessed,
     processedToday,
     lastProcessedAt: lastProcessed?.processedAt || null,
+
+    // 🔥 NEW
+    lastRunAt: user?.schedule?.lastRunAt || null,
+    lastActivityAt: user?.schedule?.lastProcessedAt || null,
+    lastActivityCount: user?.schedule?.lastProcessedCount || 0,
+  };
+};
+
+export const getDashboardStats = async (
+  userId: mongoose.Schema.Types.ObjectId
+) => {
+  // 🔥 LABEL COUNTS
+  const labelStats = await ProcessedEmail.aggregate([
+    { $match: { userId } },
+    {
+      $group: {
+        _id: "$category",
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { count: -1 } },
+  ]);
+
+  // 🔥 TOTAL
+  const totalProcessed = await ProcessedEmail.countDocuments({ userId });
+
+  // 🔥 TODAY
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const processedToday = await ProcessedEmail.countDocuments({
+    userId,
+    processedAt: { $gte: todayStart },
+  });
+
+  return {
+    totalProcessed,
+    processedToday,
+    labels: labelStats,
+    activeLabels: labelStats.length,
   };
 };

@@ -9,27 +9,38 @@ function shouldRun(user: any): boolean {
   if (schedule.isRunning) return false;
 
   const now = new Date();
-  const lastRun = schedule.lastRunAt ? new Date(schedule.lastRunAt) : null;
+  const lastRun = schedule.lastRunAt
+    ? new Date(schedule.lastRunAt)
+    : null;
 
+  // 🔥 INTERVAL
   if (schedule.type === "interval") {
     if (!lastRun) return true;
 
-    const diffMinutes = (now.getTime() - lastRun.getTime()) / 60000;
+    const diffMinutes =
+      (now.getTime() - lastRun.getTime()) / 60000;
 
     return diffMinutes >= schedule.intervalMinutes;
   }
 
+  // 🔥 DAILY
   if (schedule.type === "daily") {
     const [hour, minute] = schedule.dailyTime.split(":").map(Number);
 
     const todayRun = new Date();
     todayRun.setHours(hour, minute, 0, 0);
 
-    if (!lastRun) {
-      return now >= todayRun;
-    }
+    if (!lastRun) return now >= todayRun;
 
-    return lastRun < todayRun && now >= todayRun;
+    const diffDays =
+      (now.getTime() - lastRun.getTime()) /
+      (1000 * 60 * 60 * 24);
+
+    return (
+      now >= todayRun &&
+      diffDays >= schedule.dailyInterval &&
+      lastRun < todayRun
+    );
   }
 
   return false;
@@ -39,7 +50,10 @@ export const startScheduler = () => {
   cron.schedule("* * * * *", async () => {
     console.log("⏱️ Scheduler tick...");
 
-    const users = await User.find();
+    const users = await User.find({
+      "schedule.enabled": true,
+      "schedule.isRunning": false,
+    });
 
     for (const user of users) {
       try {
@@ -47,33 +61,26 @@ export const startScheduler = () => {
 
         const now = new Date();
 
-        let lastRun;
+        const lastRun =
+          user.schedule?.lastRunAt ||
+          new Date(now.getTime() - 5 * 60 * 1000);
 
-        if (!user.schedule?.lastRunAt) {
-          // 🔥 FIRST RUN ONLY
-          lastRun = new Date(now.getTime() - 5 * 60 * 1000);
-        } else {
-          lastRun = new Date(user.schedule.lastRunAt);
-        }
+        console.log(
+          `🚀 Scheduling: ${user.email} | ${lastRun} → ${now}`
+        );
 
-        console.log(`🚀 Scheduling user: ${user._id} | ${lastRun} → ${now}`);
-
-        // 🔥 ONLY mark running here (NOT lastRunAt)
+        // 🔥 mark running
         await User.findByIdAndUpdate(user._id, {
           "schedule.isRunning": true,
         });
 
-        // ✅ PASS TIME RANGE
         await emailQueue.add(
           "process-user-emails",
           {
             userId: user._id.toString(),
             startTime: lastRun,
             endTime: now,
-          },
-          {
-            jobId: `user-${user._id}`, // prevent duplicates
-          },
+          }
         );
       } catch (err) {
         console.error("❌ Scheduler error:", err);

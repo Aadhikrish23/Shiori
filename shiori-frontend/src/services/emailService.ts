@@ -17,3 +17,7 @@ export const processCustom = async (data: {
   const res = await API.post("/email/process-custom", data);
   return res.data;
 };
+export const getDashboard = async () => {
+  const res = await API.get("/email/dashboard");
+  return res.data;
+};

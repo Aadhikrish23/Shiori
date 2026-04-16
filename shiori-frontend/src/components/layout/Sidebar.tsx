@@ -11,7 +11,7 @@ const Sidebar = () => {
   ];
 
   return (
-    <div className="w-64 h-screen bg-gray-900 text-white p-5">
+    <div className="w-64 min-h-full bg-gray-900 text-white p-5">
       <h1 className="text-2xl font-bold mb-8">Shiori</h1>
 
       <nav className="space-y-4">

@@ -5,12 +5,16 @@ interface Stats {
   totalProcessed: number;
   processedToday: number;
   lastProcessedAt: string | null;
-}
 
+  lastRunAt?: string | null;
+  lastActivityAt?: string | null;
+  lastActivityCount?: number;
+}
 interface Store {
   stats: Stats | null;
   loading: boolean;
   processing: boolean;
+  dashboard: any;
 
   fetchStats: () => Promise<void>;
   processEmails: (options?: {
@@ -18,12 +22,15 @@ interface Store {
     endDate?: string;
     includeProcessed?: boolean;
   }) => Promise<void>;
+  
+fetchDashboard: () => Promise<void>;
 }
 
 export const useEmailStore = create<Store>((set) => ({
   stats: null,
   loading: false,
   processing: false,
+  dashboard: null,
 
   fetchStats: async () => {
     set({ loading: true });
@@ -50,6 +57,14 @@ export const useEmailStore = create<Store>((set) => ({
     }
   } finally {
     set({ processing: false });
+  }
+},
+fetchDashboard: async () => {
+  try {
+    const data = await emailService.getDashboard();
+    set({ dashboard: data });
+  } catch (err) {
+    console.error(err);
   }
 },
 }));

@@ -26,7 +26,7 @@ const Labels = () => {
         </button>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {configs.map((config) => (
           <LabelCard
             key={config._id}

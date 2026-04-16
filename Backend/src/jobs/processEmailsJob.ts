@@ -42,6 +42,7 @@ export const processEmailsJob = async ({
   includeProcessed: includeProcessed,
 }: JobParams) => {
   console.log(`🚀 Processing emails for user: ${userId}`);
+  let processedCount = 0;
 
   try {
     const endTime = endTimeParam || new Date();
@@ -60,9 +61,9 @@ export const processEmailsJob = async ({
     console.log("📨 Total emails:", emails.length);
 
     if (!labels.length) {
-      console.log("⚠️ No labels configured");
-      return;
-    }
+  console.log("⚠️ No labels configured");
+  return { processedCount: 0 };
+}
 
     const gmailLabelMap = new Map<string, string>();
 
@@ -91,10 +92,10 @@ export const processEmailsJob = async ({
 
     console.log("🧹 Emails to process:", emailsToProcess.length);
 
-    if (!emailsToProcess.length) {
-      console.log("📭 No new emails");
-      return;
-    }
+   if (!emailsToProcess.length) {
+  console.log("📭 No new emails");
+  return { processedCount: 0 };
+}
 
     const batches = chunkArray(emailsToProcess, 12);
 
@@ -149,10 +150,13 @@ export const processEmailsJob = async ({
         }
 
         await markAsProcessed(userId, email.id, matchedLabel.name);
+        processedCount++;
 
         console.log(`✅ Done: ${labelName}`);
       }
+      
     }
+    return { processedCount };
   } catch (err: any) {
     console.error("❌ JOB ERROR:", err.message);
     throw err; // 🔥 VERY IMPORTANT (enables retry)
