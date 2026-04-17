@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
-import { getTagSuggestions } from "../../services/tagService";
-
+import { useState } from "react";
+import { useTagSuggestions } from "../hooks/useTagSuggestions";
 interface Props {
   keyword: string;
   tags: string[];
@@ -8,19 +7,8 @@ interface Props {
 }
 
 const TagInput = ({ keyword, tags, setTags }: Props) => {
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [input, setInput] = useState("");
-
-  useEffect(() => {
-    if (!keyword) return;
-
-    const fetch = async () => {
-      const data = await getTagSuggestions(keyword);
-      setSuggestions(data);
-    };
-
-    fetch();
-  }, [keyword]);
+  const suggestions = useTagSuggestions(keyword);
 
   const addTag = (tag: string) => {
     if (!tags.includes(tag)) {

@@ -9,7 +9,7 @@ const Login = () => {
     <div className="h-screen flex bg-gray-50">
       
       {/* LEFT SIDE */}
-      <div className="hidden md:flex w-1/2 bg-gradient-to-br from-indigo-500 to-blue-600 text-white p-12 flex-col justify-between">
+      <div className="hidden md:flex w-1/2 bg-linear-to-br from-indigo-500 to-blue-600 text-white p-12 flex-col justify-between">
         <div>
           <h1 className="text-3xl font-bold">Shiori</h1>
           <p className="mt-4 text-sm text-indigo-100">

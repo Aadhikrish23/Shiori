@@ -1,16 +1,13 @@
-import Layout from "../components/layout/Layout";
-import { useEffect, useState } from "react";
-import CreateLabelModal from "../components/labels/CreateLabelModal";
-import LabelCard from "../components/labels/LabelCard";
-import { useLabelConfigStore } from "../store/labelConfigStore";
-
+import Layout from "../../../shared/ui/layout/Layout";
+import {  useState } from "react";
+import CreateLabelModal from "../components/CreateLabelModal";
+import LabelCard from "../components/LabelCard";
+import { useLabels } from "../hooks/useLabels";
 const Labels = () => {
   const [open, setOpen] = useState(false);
-  const { configs, deleteConfig, fetchLabels } = useLabelConfigStore();
+  
   const [editingLabel, setEditingLabel] = useState<any>(null);
-  useEffect(() => {
-    fetchLabels();
-  }, []);
+  const { configs, deleteConfig } = useLabels();
   return (
     <Layout>
       <div className="flex justify-between mb-6">

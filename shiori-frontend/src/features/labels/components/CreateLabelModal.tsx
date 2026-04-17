@@ -1,7 +1,7 @@
 import { Dialog, DialogTitle, DialogContent } from "@mui/material";
 import { useState, useEffect } from "react";
 import TagInput from "./TagInput";
-import { useLabelConfigStore } from "../../store/labelConfigStore";
+import { useLabelActions } from "../hooks/useLabelActions";
 
 interface Props {
   open: boolean;
@@ -17,8 +17,7 @@ const CreateLabelModal = ({ open, onClose, initialData }: Props) => {
   const [keyword, setKeyword] = useState("");
   const [tags, setTags] = useState<string[]>([]);
 
-  const { addConfig, updateConfig } = useLabelConfigStore();
-
+const { addConfig, updateConfig } = useLabelActions();
   // 🔥 Sync data when editing
   useEffect(() => {
     if (initialData) {

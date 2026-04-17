@@ -1,13 +1,11 @@
-import Layout from "../components/layout/Layout";
+import Layout from "../../../shared/ui/layout/Layout";
 import { useEffect } from "react";
-import { useEmailStore } from "../store/emailStore";
-
+import { useEmail } from "../../email/hooks/useEmail";
 const Dashboard = () => {
-  const { dashboard, fetchDashboard } = useEmailStore();
-
-  useEffect(() => {
-    fetchDashboard();
-  }, []);
+const { dashboard, fetchDashboard } = useEmail();
+useEffect(() => {
+  fetchDashboard();
+}, [fetchDashboard]);
 
   if (!dashboard) {
     return (

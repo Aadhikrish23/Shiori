@@ -1,7 +1,6 @@
-import { useAuthStore } from "../../store/authStore.ts";
-
+import { useAuth } from "../../../features/auth/hooks/useAuth";
 const Navbar = () => {
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useAuth();
 
   return (
     <div className="h-16 bg-white shadow flex items-center justify-between px-6">

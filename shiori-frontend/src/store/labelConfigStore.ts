@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import * as labelService from "../services/labelService";
 
 interface LabelConfig {
   _id: string;
@@ -9,43 +8,32 @@ interface LabelConfig {
 
 interface Store {
   configs: LabelConfig[];
-  fetchLabels: () => Promise<void>;
-  addConfig: (name: string, tags: string[]) => Promise<void>;
-  deleteConfig: (id: string) => Promise<void>;
-  updateConfig: (id: string, name: string, tags: string[]) => Promise<void>;
+
+  setConfigs: (configs: LabelConfig[]) => void;
+  addConfigLocal: (config: LabelConfig) => void;
+  removeConfigLocal: (id: string) => void;
+  updateConfigLocal: (config: LabelConfig) => void;
 }
 
 export const useLabelConfigStore = create<Store>((set) => ({
   configs: [],
 
-  fetchLabels: async () => {
-    const data = await labelService.getLabels();
-    set({ configs: data });
-  },
+  setConfigs: (configs) => set({ configs }),
 
-  addConfig: async (name, tags) => {
-    const newLabel = await labelService.createLabel({ name, tags });
-
+  addConfigLocal: (config) =>
     set((state) => ({
-      configs: [...state.configs, newLabel],
-    }));
-  },
+      configs: [...state.configs, config],
+    })),
 
-  deleteConfig: async (id) => {
-    await labelService.deleteLabel(id);
-
+  removeConfigLocal: (id) =>
     set((state) => ({
       configs: state.configs.filter((c) => c._id !== id),
-    }));
-  },
+    })),
 
-  updateConfig: async (id, name, tags) => {
-    const updated = await labelService.updateLabel(id, { name, tags });
-
+  updateConfigLocal: (updated) =>
     set((state) => ({
       configs: state.configs.map((c) =>
-        c._id === id ? updated : c
+        c._id === updated._id ? updated : c
       ),
-    }));
-  },
+    })),
 }));

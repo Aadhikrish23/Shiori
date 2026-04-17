@@ -1,4 +1,4 @@
-import Layout from "../components/layout/Layout";
+import Layout from "../../../shared/ui/layout/Layout";
 
 const Settings = () => {
   return (

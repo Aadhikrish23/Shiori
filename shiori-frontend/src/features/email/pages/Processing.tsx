@@ -1,11 +1,10 @@
-import Layout from "../components/layout/Layout";
+import Layout from "../../../shared/ui/layout/Layout";
 import { useEffect, useState } from "react";
-import { useEmailStore } from "../store/emailStore";
-import ProcessModal from "../components/processing/ProcessModal";
-import { saveSchedule, getSchedule } from "../services/scheduleService";
-
+import { useEmail } from "../../email/hooks/useEmail";
+import ProcessModal from "../components/ProcessModal";
+import { useSchedule } from "../hooks/useSchedule";
 const Processing = () => {
-  const { stats, loading, fetchStats } = useEmailStore();
+  const { stats, loading, fetchStats } = useEmail();
 
   const [openModal, setOpenModal] = useState(false);
 
@@ -18,7 +17,9 @@ const Processing = () => {
   const [time, setTime] = useState("09:00");
 
   const [saving, setSaving] = useState(false);
-  const [initialized, setInitialized] = useState(false); // 🔥 VERY IMPORTANT
+  const [initialized, setInitialized] = useState(false); 
+  const { saveSchedule, getSchedule } = useSchedule();
+
 
   useEffect(() => {
     fetchStats();

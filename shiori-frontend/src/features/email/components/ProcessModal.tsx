@@ -1,6 +1,6 @@
 import { Dialog, DialogTitle, DialogContent } from "@mui/material";
 import { useState } from "react";
-import { useEmailStore } from "../../store/emailStore";
+import { useEmail } from "../../email/hooks/useEmail";
 
 interface Props {
   open: boolean;
@@ -8,7 +8,7 @@ interface Props {
 }
 
 const ProcessModal = ({ open, onClose }: Props) => {
-  const { processEmails } = useEmailStore();
+  const { processEmails } = useEmail();
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
