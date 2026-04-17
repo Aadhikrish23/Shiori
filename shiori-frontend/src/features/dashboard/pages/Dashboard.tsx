@@ -5,7 +5,7 @@ const Dashboard = () => {
 const { dashboard, fetchDashboard } = useEmail();
 useEffect(() => {
   fetchDashboard();
-}, [fetchDashboard]);
+}, []);
 
   if (!dashboard) {
     return (
@@ -17,9 +17,9 @@ useEffect(() => {
     );
   }
 
-  const labels = (dashboard.labels || []).sort(
-    (a: any, b: any) => b.count - a.count
-  );
+ const labels = (dashboard.labels || []).sort(
+  (a: any, b: any) => (b.count - a.count) || a._id.localeCompare(b._id)
+);
 
   const total = dashboard.totalProcessed || 1;
 

@@ -1,77 +1,9 @@
-import fs from "fs";
-import path from "path";
-import readline from "readline";
 import { google } from "googleapis";
 import { config } from "../config";
-import { Email } from "../types/email";
+
 import { User } from "../models/user.model";
 import { decrypt } from "../utils/crypto";
 import mongoose from "mongoose";
-const SCOPES = ["https://www.googleapis.com/auth/gmail.modify"];
-const TOKEN_PATH = path.join(__dirname, "../storage/token.json");
-
-let gmailClient: any = null;
-const labelCache: Record<string, string> = {};
-
-// ==============================
-// 🔐 AUTHORIZATION
-// ==============================
-async function authorize() {
-  const oAuth2Client = new google.auth.OAuth2(
-    config.gmailClientId,
-    config.gmailClientSecret,
-    config.gmailRedirectUri
-  );
-
-  // ✅ Load existing token
-  if (fs.existsSync(TOKEN_PATH)) {
-    const token = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
-    oAuth2Client.setCredentials(token);
-
-    // 🔄 Auto-save refreshed tokens
-    oAuth2Client.on("tokens", (tokens) => {
-      const updated = {
-        ...oAuth2Client.credentials,
-        ...tokens,
-      };
-      fs.writeFileSync(TOKEN_PATH, JSON.stringify(updated, null, 2));
-    });
-
-    return oAuth2Client;
-  }
-
-  // 🆕 First-time authentication
-  const authUrl = oAuth2Client.generateAuthUrl({
-    access_type: "offline",
-    scope: SCOPES,
-  });
-
-  console.log("🔐 Authorize this app:", authUrl);
-
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  const code: string = await new Promise((resolve) => {
-    rl.question("Enter code: ", (code) => {
-      rl.close();
-      resolve(code);
-    });
-  });
-
-  const { tokens } = await oAuth2Client.getToken(code);
-  oAuth2Client.setCredentials(tokens);
-
-  fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2));
-
-  return oAuth2Client;
-}
-
-// ==============================
-// 📬 GET GMAIL CLIENT
-// ==============================
-
 
 export async function getGmailClient(userId: mongoose.Schema.Types.ObjectId) {
   const user = await User.findById(userId);
@@ -83,7 +15,7 @@ export async function getGmailClient(userId: mongoose.Schema.Types.ObjectId) {
   const oAuth2Client = new google.auth.OAuth2(
     config.gmailClientId,
     config.gmailClientSecret,
-    config.gmailRedirectUri
+    config.gmailRedirectUri,
   );
 
   oAuth2Client.setCredentials({
@@ -117,10 +49,9 @@ export async function getEmails(userId: mongoose.Schema.Types.ObjectId) {
     const headers = full.data.payload?.headers;
 
     const subject =
-      headers?.find((h:any) => h.name === "Subject")?.value || "";
+      headers?.find((h: any) => h.name === "Subject")?.value || "";
 
-    const from =
-      headers?.find((h:any) => h.name === "From")?.value || "";
+    const from = headers?.find((h: any) => h.name === "From")?.value || "";
 
     // ⚠️ body parsing can be improved later
     emails.push({
@@ -139,7 +70,7 @@ export async function getEmails(userId: mongoose.Schema.Types.ObjectId) {
 // ==============================
 export const getOrCreateLabel = async (
   userId: any,
-  labelName: string
+  labelName: string,
 ): Promise<string | null> => {
   const gmail = await getGmailClient(userId);
 
@@ -152,7 +83,7 @@ export const getOrCreateLabel = async (
 
   // 🔹 Step 2: Check if label exists
   const found = existingLabels.find(
-    (l) => l.name?.toLowerCase() === labelName.toLowerCase()
+    (l) => l.name?.toLowerCase() === labelName.toLowerCase(),
   );
 
   if (found) {
@@ -179,7 +110,7 @@ export const getOrCreateLabel = async (
       });
 
       const retryFound = retry.data.labels?.find(
-        (l) => l.name?.toLowerCase() === labelName.toLowerCase()
+        (l) => l.name?.toLowerCase() === labelName.toLowerCase(),
       );
 
       return retryFound?.id || null;
@@ -192,7 +123,11 @@ export const getOrCreateLabel = async (
 // ==============================
 // 🏷️ APPLY LABEL
 // ==============================
-export async function applyLabel(userId:mongoose.Schema.Types.ObjectId ,messageId: string, labelId: string) {
+export async function applyLabel(
+  userId: mongoose.Schema.Types.ObjectId,
+  messageId: string,
+  labelId: string,
+) {
   const gmail = await getGmailClient(userId);
 
   await gmail.users.messages.modify({
@@ -207,7 +142,10 @@ export async function applyLabel(userId:mongoose.Schema.Types.ObjectId ,messageI
 // ==============================
 // ⭐ STAR EMAIL
 // ==============================
-export async function starEmail(userId:mongoose.Schema.Types.ObjectId ,messageId: string) {
+export async function starEmail(
+  userId: mongoose.Schema.Types.ObjectId,
+  messageId: string,
+) {
   const gmail = await getGmailClient(userId);
 
   await gmail.users.messages.modify({
@@ -222,7 +160,10 @@ export async function starEmail(userId:mongoose.Schema.Types.ObjectId ,messageId
 // ==============================
 // 📥 ARCHIVE EMAIL
 // ==============================
-export async function archiveEmail(userId:mongoose.Schema.Types.ObjectId ,messageId: string) {
+export async function archiveEmail(
+  userId: mongoose.Schema.Types.ObjectId,
+  messageId: string,
+) {
   const gmail = await getGmailClient(userId);
 
   await gmail.users.messages.modify({
@@ -237,7 +178,7 @@ export async function archiveEmail(userId:mongoose.Schema.Types.ObjectId ,messag
 export async function getEmailsByTimeRange(
   userId: mongoose.Schema.Types.ObjectId,
   start: Date,
-  end: Date
+  end: Date,
 ) {
   const gmail = await getGmailClient(userId);
 
@@ -264,8 +205,7 @@ export async function getEmailsByTimeRange(
     const subject =
       headers?.find((h: any) => h.name === "Subject")?.value || "";
 
-    const from =
-      headers?.find((h: any) => h.name === "From")?.value || "";
+    const from = headers?.find((h: any) => h.name === "From")?.value || "";
 
     emails.push({
       id: msg.id!,

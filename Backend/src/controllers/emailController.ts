@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { emailQueue } from "../queue/emailQueue";
-import { getEmailStats } from "../repositories/processedEmailRepo";
-
+import * as emailService from "../services/emailServices"
 // 🔥 PROCESS DEFAULT (cron/manual trigger)
 export const processUserEmails = async (req: any, res: Response) => {
   const userId = req.user?.id;
@@ -17,7 +16,7 @@ export const processUserEmails = async (req: any, res: Response) => {
     { userId },
     {
       jobId: `user-${userId}`, // prevent duplicate
-    }
+    },
   );
 
   res.json({ message: "User job added" });
@@ -27,7 +26,7 @@ export const processUserEmails = async (req: any, res: Response) => {
 export const processCustomRange = async (
   req: any,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const userId = req.user?.id;
@@ -56,7 +55,7 @@ export const processCustomRange = async (
       },
       {
         jobId: `manual-${userId}-${Date.now()}`,
-      }
+      },
     );
 
     res.json({
@@ -71,37 +70,28 @@ export const processCustomRange = async (
 export const getEmailStatsController = async (
   req: any,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const stats = await getEmailStats(userId);
+    const stats = await emailService.getStats(userId);
 
     res.json(stats);
   } catch (err) {
     next(err);
   }
 };
-import { getDashboardStats } from "../repositories/processedEmailRepo";
 
 export const getDashboardController = async (
   req: any,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const userId = req.user?.id;
 
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const data = await getDashboardStats(userId);
+    const data = await emailService.getDashboard(userId);
 
     res.json(data);
   } catch (err) {

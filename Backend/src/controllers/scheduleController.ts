@@ -1,35 +1,12 @@
 import { Response } from "express";
-import { User } from "../models/user.model";
+import * as scheduleService from "../services/scheduleService";
 
 export const saveSchedule = async (req: any, res: Response) => {
-  const userId = req.user.id;
-
-  const updates = req.body;
-
-  const user = await User.findById(userId);
-
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
-  }
-
-  // 🔥 merge instead of overwrite
-  user.schedule = {
-    ...user.schedule,
-    ...updates,
-  };
-
-  await user.save();
-
+  await scheduleService.saveSchedule(req.user.id, req.body);
   res.json({ message: "Schedule saved" });
 };
+
 export const getSchedule = async (req: any, res: Response) => {
-  const userId = req.user.id;
-
-  const user = await User.findById(userId).select("schedule");
-
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
-  }
-
-  res.json(user.schedule);
+  const data = await scheduleService.getSchedule(req.user.id);
+  res.json(data);
 };

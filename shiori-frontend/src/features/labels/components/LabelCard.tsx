@@ -9,7 +9,7 @@ interface Props {
 const LabelCard = ({ name, tags, onDelete ,onEdit}: Props) => {
   return (
     <div className="bg-white p-4 rounded shadow">
-      <h3 className="font-bold">{name}</h3>
+      <h3 className="font-bold">{name.charAt(0).toUpperCase()+name.slice(1)}</h3>
 
       <div className="flex gap-2 mt-2 flex-wrap">
         {tags.map((tag) => (
