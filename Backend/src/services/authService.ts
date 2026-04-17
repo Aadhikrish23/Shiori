@@ -13,6 +13,7 @@ export const getGoogleAuthUrl = () => {
   return oAuth2Client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
+    include_granted_scopes: false,
     scope: [
       "https://www.googleapis.com/auth/gmail.modify",
       "https://www.googleapis.com/auth/userinfo.email",
@@ -24,6 +25,8 @@ export const getGoogleAuthUrl = () => {
 export const handleGoogleCallback = async (code: string) => {
   const { tokens } = await oAuth2Client.getToken(code);
   oAuth2Client.setCredentials(tokens);
+  const tokenInfo = await oAuth2Client.getTokenInfo(tokens.access_token!);
+console.log("SCOPES:", tokenInfo.scopes);
 
   // 🔥 get user email
   const oauth2 = google.oauth2({
