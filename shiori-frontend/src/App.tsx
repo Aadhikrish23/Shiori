@@ -1,35 +1,65 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import { useAuthStore } from "./store/authStore.ts";
+
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Labels from "./pages/Labels";
 import Emails from "./pages/Processing";
 import Settings from "./pages/Settings";
-import { useState, useEffect } from "react";
-import API from "./services/api";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 function App() {
-   const [isAuth, setIsAuth] = useState<boolean | null>(null);
+  const { fetchUser, loading } = useAuthStore();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        await API.get("/auth/me");
-        setIsAuth(true);
-      } catch {
-        setIsAuth(false);
-      }
-    };
-
-    checkAuth();
+    fetchUser();
   }, []);
+
+  if (loading) {
+    return <div className="p-6 text-gray-500">Loading app...</div>;
+  }
+
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/auth/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/labels" element={<Labels />} />
-        <Route path="/emails" element={<Emails />} />
-        <Route path="/settings" element={<Settings />} />
+
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/labels"
+          element={
+            <ProtectedRoute>
+              <Labels />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/emails"
+          element={
+            <ProtectedRoute>
+              <Emails />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

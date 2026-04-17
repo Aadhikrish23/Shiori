@@ -13,6 +13,15 @@ export const emailWorker = new Worker(
     if (job.name === "process-user-emails") {
       const { userId, startTime, endTime, includeProcessed } = job.data;
 
+      const now = new Date();
+
+      const safeEndTime = endTime ? new Date(endTime) : now;
+
+      // default: last 24 hours
+      const safeStartTime = startTime
+        ? new Date(startTime)
+        : new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
       console.log(`👤 Processing user: ${userId}`);
       console.log(`⏱️ Range: ${startTime} → ${endTime}`);
 
@@ -20,8 +29,8 @@ export const emailWorker = new Worker(
         // ✅ PASS FULL DATA
         const result = await processEmailsJob({
           userId,
-          startTime: new Date(startTime),
-          endTime: new Date(endTime),
+          startTime: safeStartTime,
+          endTime: safeEndTime,
           includeProcessed,
         });
 

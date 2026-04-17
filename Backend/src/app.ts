@@ -30,11 +30,11 @@ app.use(
 app.use(express.json());
 app.use(
   session({
-    secret: "shiori-secret", // change later
+    secret: process.env.SESSION_SECRET!,
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // true in production (HTTPS)
+      secure: process.env.NODE_ENV === "production",
       httpOnly: true,
     },
   })

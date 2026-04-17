@@ -65,7 +65,7 @@ async def classify_emails_batch(data):
 
     parsed = extract_json(raw)
 
-    if not parsed:
+    if not parsed or not isinstance(parsed, list):
         return []
 
     return parsed
