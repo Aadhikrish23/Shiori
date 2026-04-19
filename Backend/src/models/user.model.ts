@@ -5,6 +5,8 @@ export interface IUser extends Document {
   accessToken: string;
   refreshToken: string;
 
+  plan: "free" | "premium"; 
+
   schedule: {
     enabled: boolean;
     type: "interval" | "daily";
@@ -15,7 +17,7 @@ export interface IUser extends Document {
     dailyTime: string;
 
     lastRunAt: Date | null;
-    lastProcessedAt:Date | null;
+    lastProcessedAt: Date | null;
     lastProcessedCount: number;
     isRunning: boolean;
   };
@@ -25,6 +27,13 @@ const userSchema = new mongoose.Schema<IUser>({
   email: { type: String, required: true, unique: true },
   accessToken: { type: String, required: true },
   refreshToken: { type: String, required: true },
+
+ 
+  plan: {
+    type: String,
+    enum: ["free", "premium"],
+    default: "free",
+  },
 
   schedule: {
     enabled: { type: Boolean, default: false },

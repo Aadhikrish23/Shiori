@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { emailQueue } from "../queue/emailQueue";
-import * as emailService from "../services/emailServices"
+import * as emailService from "../services/emailServices";
 // 🔥 PROCESS DEFAULT (cron/manual trigger)
 export const processUserEmails = async (req: any, res: Response) => {
   const userId = req.user?.id;
@@ -11,13 +11,10 @@ export const processUserEmails = async (req: any, res: Response) => {
     });
   }
 
-  await emailQueue.add(
-    "process-user-emails",
-    { userId },
-    {
-      jobId: `user-${userId}`, // prevent duplicate
-    },
-  );
+  await emailQueue.add("process-user-emails", {
+    userId,
+    jobType: req.user.plan === "premium" ? "premium" : "free",
+  });
 
   res.json({ message: "User job added" });
 };
@@ -44,6 +41,15 @@ export const processCustomRange = async (
 
     const startTime = new Date(startDate);
     const endTime = new Date(endDate);
+    const traceId = `trace-${userId}-${Date.now()}`;
+
+    console.log("📥 API REQUEST", {
+      traceId,
+      userId,
+      startDate,
+      endDate,
+      includeProcessed,
+    });
 
     await emailQueue.add(
       "process-user-emails",
@@ -52,9 +58,12 @@ export const processCustomRange = async (
         startTime,
         endTime,
         includeProcessed,
+        jobType: req.user.plan === "premium" ? "premium" : "free",
+         traceId,
       },
       {
         jobId: `manual-${userId}-${Date.now()}`,
+        priority: 2,
       },
     );
 
@@ -97,4 +106,72 @@ export const getDashboardController = async (
   } catch (err) {
     next(err);
   }
+};
+export const getEmailListController = async (
+  req: any,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.user?.id;
+
+    const result = await emailService.getEmailList(userId, req.query);
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+export const getEmailOverviewController = async (
+  req: any,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.user?.id;
+
+    const data = await emailService.getEmailOverview(userId);
+
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+export const processBulkEmails = async (req: any, res: Response) => {
+  const userId = req.user?.id;
+  const { includeProcessed = false } = req.body;
+
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  // 🔥 CHECK ACTIVE BULK JOBS
+  const activeJobs = await emailQueue.getJobs(["active", "waiting"]);
+
+  const bulkRunning = activeJobs.filter(
+    (job) => job.data.jobType === "bulk" && job.data.userId === userId,
+  );
+  if (bulkRunning.length >= 1) {
+    return res.status(400).json({
+      message: "Bulk processing already running. Try later.",
+    });
+  }
+
+  // 🔥 ADD BULK JOB
+  await emailQueue.add(
+    "process-user-emails",
+    {
+      userId,
+      includeProcessed,
+      jobType: "bulk", // 🔥 THIS IS THE KEY
+    },
+    {
+      jobId: `bulk-${userId}-${Date.now()}`,
+      priority: 5, // 🔥 LOW priority
+    },
+  );
+
+  res.json({
+    message: "Bulk processing started",
+  });
 };

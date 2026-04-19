@@ -7,3 +7,4 @@ src/config/token.json
 src/config/credentials.json
 src/storage/token.json
 .env
+test.http

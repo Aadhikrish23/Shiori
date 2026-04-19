@@ -1,44 +1,68 @@
 def build_prompt(email, labels):
     labels_text = "\n".join(
         [
-            f"- {l.name}: {', '.join(l.tags)}"
+            f"- {l['name']}: {l.get('description', '')} | Tags: {', '.join(l['tags'])}"
             for l in labels
         ]
     )
 
     return f"""
-You are an email classification system.
+You are a highly accurate email classification system.
 
-You MUST choose EXACTLY ONE label from the list below.
+You MUST assign EXACTLY ONE label from the list.
 
-Each label contains tags that describe the category.
+Each label includes:
+- Description → meaning of the category
+- Tags → keywords associated with it
 
-Available labels:
+------------------------
+LABELS:
 {labels_text}
 
-STRICT RULES:
-- Only return a label from the list
-- Do NOT generalize
-- Do NOT merge categories
-- Match based on tags relevance
-- If it's a job alert → choose "jobs"
-- If it's marketing → choose "promotions"
--- Always return label names exactly as given (case-sensitive, usually lowercase)
+------------------------
+CLASSIFICATION RULES:
 
-Return ONLY JSON:
+- Choose the label that BEST matches the email's intent
+- Use DESCRIPTION as the PRIMARY signal
+- Use TAGS as supporting hints only
+- Do NOT rely only on keywords
+
+- Do NOT force-fit emails into incorrect labels
+- If uncertain, choose the closest logical match
+
+------------------------
+IMPORTANT RULES:
+
+- Job label → ONLY actual hiring / recruiter / job alerts
+- Promotions → ONLY marketing / sales / offers
+- Alerts → security, banking, urgent system messages
+- Updates → newsletters, informational emails
+- Do NOT classify courses/webinars as jobs
+
+------------------------
+OUTPUT RULES:
+
+- Return ONLY valid JSON
+- No explanations
+- Label must EXACTLY match one from list
+
+Format:
 {{"label":"<label_name>","important":true/false}}
 
-Email:
+------------------------
+EMAIL:
+
 Subject: {email.subject}
 From: {email.sender}
 Body: {email.body}
 """
 
 
+
 def build_batch_prompt(emails, labels):
     labels_text = "\n".join(
         [
-            f"{l['name']}: {', '.join(l['tags'])}"
+            f"- {l['name']}: {l.get('description', '')} | Tags: {', '.join(l['tags'])}"
             for l in labels
         ]
     )
@@ -54,27 +78,78 @@ Body: {e['body'][:300]}
     ])
 
     return f"""
-You are an email classification system.
+You are an advanced email classification system.
 
-Each label has a list of tags describing it.
+Classify EACH email into:
 
-Your job is to match email content with the most relevant label using those tags.
+1. label (user-defined)
+2. type (system-defined)
+3. action (system-defined)
+4. confidence (0.5–1)
+5. important (true/false)
 
-Labels:
+------------------------
+LABELS:
 {labels_text}
 
-Rules:
-- Only use the provided labels
-- Choose EXACTLY ONE label per email
-- Match based on semantic similarity with tags
-- Do NOT invent labels
+------------------------
+TYPE (choose ONE):
+- primary
+- update
+- alert
+- promotion
+
+------------------------
+ACTION (choose ONE):
+- needs_action
+- waiting
+- info
+- noise
+
+------------------------
+CLASSIFICATION RULES:
+
+- Use DESCRIPTION as primary meaning
+- Use TAGS only as hints
+- Understand the INTENT of the email
+- Do NOT rely on keyword matching alone
+
+- Jobs = ONLY hiring-related emails
+- Promotions = ONLY marketing/ads
+- Alerts = security / banking / urgent
+- Updates = newsletters / informational
+- Courses/webinars ≠ jobs
+
+------------------------
+CONFIDENCE RULE:
+
+- 0.9+ → very clear category
+- 0.75–0.9 → strong match
+- 0.6–0.75 → uncertain
+- <0.6 → weak guess
+
+------------------------
+OUTPUT RULES:
+
+- Use ONLY given labels
+- EXACT match label name
 - No explanations
-- Be consistent and strict
-- - Always return label names exactly as given (case-sensitive, usually lowercase)
+- Strict JSON array
 
-Return STRICT JSON:
-[{{"id":"...","label":"...","important":true/false}}]
+------------------------
+RETURN FORMAT:
+[
+  {{
+    "id": "...",
+    "label": "...",
+    "type": "...",
+    "action": "...",
+    "confidence": 0.85,
+    "important": true/false
+  }}
+]
 
-Emails:
+------------------------
+EMAILS:
 {emails_text}
 """

@@ -20,6 +20,7 @@
     "ioredis": "^5.10.1",
     "mongoose": "^9.4.1",
     "node-cron": "^4.2.1",
+    "p-limit": "^7.3.0",
     "redis": "^5.11.0"
   },
   "devDependencies": {

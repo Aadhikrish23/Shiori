@@ -45,6 +45,11 @@ export const useEmail = () => {
       } else {
         await emailService.processEmails();
       }
+
+      return true; // 🔥 important
+    } catch (err) {
+      console.error(err);
+      return false;
     } finally {
       setProcessing(false);
     }

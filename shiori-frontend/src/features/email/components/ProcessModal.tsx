@@ -14,20 +14,27 @@ const ProcessModal = ({ open, onClose }: Props) => {
   const [endDate, setEndDate] = useState("");
   const [reprocess, setReprocess] = useState(false);
 const now = new Date().toLocaleDateString('en-CA'); 
-  const handleSubmit = async () => {
-    if (startDate && endDate) {
-      await processEmails({
-        startDate,
-        endDate,
-        includeProcessed: reprocess,
-      });
-    } else {
-      await processEmails();
-    }
+ const handleSubmit = async () => {
+  let success = false;
 
-    onClose();
-  };
+  if (startDate && endDate) {
+    success = await processEmails({
+      startDate,
+      endDate,
+      includeProcessed: reprocess,
+    });
+  } else {
+    success = await processEmails();
+  }
 
+  if (success) {
+    alert("Processing started 🚀"); // simple feedback
+  } else {
+    alert("Failed to start processing");
+  }
+
+  onClose();
+};
   return (
     <Dialog open={open} onClose={onClose} fullWidth>
       <DialogTitle>Process Emails</DialogTitle>

@@ -4,7 +4,6 @@ import { ILabelConfig } from "../models/labelConfig.model";
 import {
   applyLabel,
   archiveEmail,
-  getEmails,
   getEmailsByTimeRange,
   getOrCreateLabel,
   starEmail,
@@ -15,12 +14,14 @@ import {
   markAsProcessed,
 } from "../repositories/processedEmailRepo";
 import mongoose from "mongoose";
+import pLimit from "p-limit";
 
 interface JobParams {
   userId: mongoose.Schema.Types.ObjectId;
   startTime?: Date;
   endTime?: Date;
   includeProcessed?: boolean;
+  traceId: string;
 }
 
 function normalizeLabel(label: string) {
@@ -39,9 +40,11 @@ export const processEmailsJob = async ({
   userId,
   startTime: startTimeParam,
   endTime: endTimeParam,
-  includeProcessed: includeProcessed,
+  includeProcessed = false,
+  traceId,
 }: JobParams) => {
-  console.log(`🚀 Processing emails for user: ${userId}`);
+  console.log("🔥 JOB START", { traceId, userId, includeProcessed });
+
   let processedCount = 0;
 
   try {
@@ -49,22 +52,41 @@ export const processEmailsJob = async ({
     const startTime =
       startTimeParam || new Date(endTime.getTime() - 5 * 60 * 1000);
 
-    console.log(`⏱️ Time range: ${startTime} → ${endTime}`);
+    console.log("📡 FETCH START", { traceId, startTime, endTime });
 
+    // =========================================
+    // 📥 FETCH EMAILS
+    // =========================================
     const emails: Email[] = await getEmailsByTimeRange(
       userId,
       startTime,
       endTime,
+      traceId
     );
+
+    console.log("📨 FETCH DONE", {
+      traceId,
+      totalEmails: emails.length,
+    });
+
+    if (!emails.length) {
+      console.log("📭 No emails found", { traceId });
+      return { processedCount: 0 };
+    }
+
+    // =========================================
+    // 🏷️ LOAD LABELS
+    // =========================================
     const labels: ILabelConfig[] = await getAllLabels(userId.toString());
 
-    console.log("📨 Total emails:", emails.length);
-
     if (!labels.length) {
-  console.log("⚠️ No labels configured");
-  return { processedCount: 0 };
-}
+      console.log("⚠️ No labels configured", { traceId });
+      return { processedCount: 0 };
+    }
 
+    // =========================================
+    // 🏷️ PREPARE LABEL MAP
+    // =========================================
     const gmailLabelMap = new Map<string, string>();
 
     for (const label of labels) {
@@ -77,47 +99,85 @@ export const processEmailsJob = async ({
     }
 
     const labelMap = new Map(
-      labels.map((l) => [l.name.trim().toLowerCase(), l]),
+      labels.map((l) => [l.name.trim().toLowerCase(), l])
     );
 
+    // =========================================
+    // 🧹 FILTER PROCESSED EMAILS
+    // =========================================
     let emailsToProcess = emails;
 
     if (!includeProcessed) {
       const processedChecks = await Promise.all(
-        emails.map((email) => isProcessed(userId, email.id)),
+        emails.map((email) => isProcessed(userId, email.id))
       );
 
       emailsToProcess = emails.filter((_, i) => !processedChecks[i]);
     }
 
-    console.log("🧹 Emails to process:", emailsToProcess.length);
+    console.log("🧹 FILTER RESULT", {
+      traceId,
+      toProcess: emailsToProcess.length,
+    });
 
-   if (!emailsToProcess.length) {
-  console.log("📭 No new emails");
-  return { processedCount: 0 };
-}
+    if (!emailsToProcess.length) {
+      console.log("📭 Nothing to process", { traceId });
+      return { processedCount: 0 };
+    }
 
+    // =========================================
+    // 📦 BATCHING
+    // =========================================
     const batches = chunkArray(emailsToProcess, 12);
 
-    for (const batch of batches) {
-      console.log(`📦 Batch size: ${batch.length}`);
-      console.log("🤖 Calling AI service...");
+    console.log("📦 BATCH CREATED", {
+      traceId,
+      totalBatches: batches.length,
+    });
 
-      const aiResults = await classifyEmailsBatch({
-        emails: batch.map((email) => ({
-          id: email.id,
-          subject: email.subject,
-          sender: email.sender,
-          body: email.snippet,
-        })),
-        labels: labels.map((l) => ({
-          name: l.name,
-          tags: l.tags,
-        })),
-      });
+    // =========================================
+    // 🚀 PARALLEL AI CALLS
+    // =========================================
+    const limit = pLimit(2); // 🔥 SAFE concurrency (2–3 max)
 
-      console.log("🤖 AI response received");
+    const batchResults = await Promise.all(
+      batches.map((batch, index) =>
+        limit(async () => {
+          console.log("🤖 AI REQUEST", {
+            traceId,
+            batchIndex: index,
+            size: batch.length,
+          });
 
+          const aiResults = await classifyEmailsBatch({
+            emails: batch.map((email) => ({
+              id: email.id,
+              subject: email.subject,
+              sender: email.sender,
+              body: email.snippet,
+            })),
+            labels: labels.map((l) => ({
+              name: l.name,
+              tags: l.tags,
+              description: l.description,
+            })),
+          });
+
+          console.log("🤖 AI RESPONSE", {
+            traceId,
+            batchIndex: index,
+            results: aiResults.length,
+          });
+
+          return { batch, aiResults };
+        })
+      )
+    );
+
+    // =========================================
+    // 🔁 APPLY RESULTS (SEQUENTIAL SAFE)
+    // =========================================
+    for (const { batch, aiResults } of batchResults) {
       for (const aiResult of aiResults) {
         const email = batch.find((e) => e.id === aiResult.id);
         if (!email) continue;
@@ -126,39 +186,70 @@ export const processEmailsJob = async ({
         let matchedLabel = labelMap.get(cleanLabel);
 
         if (!matchedLabel) {
-          console.log("⚠️ Unknown label from AI:", aiResult.label);
-          matchedLabel = labelMap.get("promotions");
+          matchedLabel =
+            labelMap.get("others") || labelMap.get("promotions");
           if (!matchedLabel) continue;
         }
 
         const labelName = `AI/${matchedLabel.name}`;
         const labelId = gmailLabelMap.get(labelName);
+        if (!labelId) continue;
 
-        if (!labelId) {
-          console.log("❌ Label ID missing:", labelName);
-          continue;
-        }
-
+        // 🏷️ APPLY LABEL
         await applyLabel(userId, email.id, labelId);
 
+        // ⭐ IMPORTANT LOGIC
         if (aiResult.important) {
           await starEmail(userId, email.id);
-        } else {
-          if (["Promotions", "Spam", "Updates"].includes(matchedLabel.name)) {
-            await archiveEmail(userId, email.id);
-          }
+        } else if (
+          aiResult.confidence >= 0.7 &&
+          ["promotions", "spam", "updates"].includes(
+            matchedLabel.name.toLowerCase()
+          )
+        ) {
+          await archiveEmail(userId, email.id);
         }
 
-        await markAsProcessed(userId, email.id, matchedLabel.name);
-        processedCount++;
+        // 🔧 DEFAULTS
+        if (!aiResult.type || !aiResult.action) {
+          aiResult.type = "primary";
+          aiResult.action = "info";
+          aiResult.confidence = 0.6;
+        }
 
-        console.log(`✅ Done: ${labelName}`);
+        if (aiResult.confidence < 0.65) {
+          console.log("⚠️ LOW CONFIDENCE", {
+            traceId,
+            emailId: email.id,
+          });
+        }
+
+        // 💾 SAVE
+        await markAsProcessed(userId, email.id, {
+          category: matchedLabel.name,
+          type: aiResult.type,
+          action: aiResult.action,
+          confidence: aiResult.confidence,
+          subject: email.subject,
+          from: email.sender,
+          snippet: email.snippet,
+        });
+
+        processedCount++;
       }
-      
     }
+
+    console.log("📊 JOB COMPLETE", {
+      traceId,
+      processedCount,
+    });
+
     return { processedCount };
   } catch (err: any) {
-    console.error("❌ JOB ERROR:", err.message);
-    throw err; // 🔥 VERY IMPORTANT (enables retry)
+    console.error("❌ JOB ERROR", {
+      traceId,
+      error: err.message,
+    });
+    throw err;
   }
 };

@@ -1,9 +1,12 @@
 import { google } from "googleapis";
 import { config } from "../config";
+import { gmail_v1 } from "googleapis";
 
 import { User } from "../models/user.model";
 import { decrypt } from "../utils/crypto";
 import mongoose from "mongoose";
+import { createReportFile, appendToReport } from "../utils/reportLogger";
+import { Email } from "../types/email";
 
 export async function getGmailClient(userId: mongoose.Schema.Types.ObjectId) {
   const user = await User.findById(userId);
@@ -175,45 +178,123 @@ export async function archiveEmail(
   });
 }
 
+const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
 export async function getEmailsByTimeRange(
   userId: mongoose.Schema.Types.ObjectId,
   start: Date,
   end: Date,
+  traceId: string,
 ) {
   const gmail = await getGmailClient(userId);
 
   const after = Math.floor(start.getTime() / 1000);
   const before = Math.floor(end.getTime() / 1000);
 
-  const res = await gmail.users.messages.list({
-    userId: "me",
-    q: `after:${after} before:${before}`,
-    maxResults: 100, // still safe
+  let allMessages: gmail_v1.Schema$Message[] = [];
+  let nextPageToken: string | undefined = undefined;
+  let apiCalls = 0;
+
+  let response: gmail_v1.Schema$ListMessagesResponse;
+  console.log("📡 GMAIL QUERY", {
+    traceId,
+    after,
+    before,
+  });
+  // ==============================
+  // 📥 FETCH MESSAGE IDS
+  // ==============================
+  do {
+    const res = await gmail.users.messages.list({
+      userId: "me",
+      q: `after:${after} before:${before}`,
+      maxResults: 100,
+      pageToken: nextPageToken,
+    });
+
+    apiCalls++;
+
+    response = res.data;
+    const messages = response.messages || [];
+     console.log("📄 PAGE FETCHED", {
+      traceId,
+      count: messages.length,
+      nextPageToken,
+    });
+
+    allMessages.push(...messages);
+    nextPageToken = response.nextPageToken || undefined;
+   
+  } while (nextPageToken);
+  console.log("📬 TOTAL IDS", {
+    traceId,
+    totalMessages: allMessages.length,
   });
 
-  const messages = res.data.messages || [];
+
+  // ==============================
+  // ⚡ FETCH FULL EMAILS (BATCHED)
+  // ==============================
   const emails = [];
+  let processed = 0;
 
-  for (const msg of messages) {
-    const full = await gmail.users.messages.get({
-      userId: "me",
-      id: msg.id!,
-    });
+  const BATCH_SIZE = 20;
 
-    const headers = full.data.payload?.headers;
+  for (let i = 0; i < allMessages.length; i += BATCH_SIZE) {
+    const batch = allMessages.slice(i, i + BATCH_SIZE);
 
-    const subject =
-      headers?.find((h: any) => h.name === "Subject")?.value || "";
+    const results = await Promise.all(
+      batch.map(async (msg) => {
+        try {
+          const full = await gmail.users.messages.get({
+            userId: "me",
+            id: msg.id!,
+          });
 
-    const from = headers?.find((h: any) => h.name === "From")?.value || "";
+          const headers = full.data.payload?.headers;
 
-    emails.push({
-      id: msg.id!,
-      subject,
-      sender: from,
-      snippet: full.data.snippet || "",
-    });
+          return {
+            id: msg.id!,
+            subject:
+              headers?.find((h: any) => h.name === "Subject")?.value || "",
+            sender: headers?.find((h: any) => h.name === "From")?.value || "",
+            snippet: full.data.snippet || "",
+          };
+        } catch (err) {
+          console.error("❌ Failed to fetch message:", msg.id);
+          return null; // prevent batch crash
+        }
+      }),
+    );
+ 
+    // ✅ filter failed ones
+    const validEmails: Email[] = results.filter(
+      (email): email is Email => email !== null,
+    );
+    emails.push(...validEmails);
+
+    processed += validEmails.length;
+
+    // 🔥 LIVE PROGRESS
+    console.log(`⚡ Processed ${processed}/${allMessages.length}`);
+
+    // 🔥 RATE LIMIT SAFETY
+    await delay(100);
   }
 
   return emails;
+}
+
+export async function getTotalEmailCount(
+  userId: mongoose.Schema.Types.ObjectId,
+) {
+  const gmail = await getGmailClient(userId);
+
+  const res = await gmail.users.messages.list({
+    userId: "me",
+    // minimal fetch
+  });
+  console.log("RESULT:", res.data);
+
+  return res.data.resultSizeEstimate || 0;
 }

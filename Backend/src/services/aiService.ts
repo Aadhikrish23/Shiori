@@ -13,3 +13,10 @@ export async function classifyEmailsBatch(
   const res = await AICall.post("/ai/email/classify-batch", data);
   return res.data;
 }
+export async function generateLabelDescription(data: {
+  name: string;
+  tags: string[];
+}): Promise<string> {
+  const res = await AICall.post("/ai/label/describe", data);
+  return res.data.description;
+}

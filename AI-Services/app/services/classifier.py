@@ -12,20 +12,23 @@ from app.services.summarizer import summarize_email_async
 # =========================
 # 🔁 PROVIDER SWITCH
 # =========================
-def call_model(prompt):
+async def call_model(prompt):
     if settings.AI_PROVIDER == "openai":
-        return openai_generate(prompt)
+        return await openai_generate(prompt)
     else:
-        return ollama_generate(prompt, settings.OLLAMA_MODEL_FAST)
-
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None,
+            lambda: ollama_generate(prompt, settings.OLLAMA_MODEL_FAST)
+        )
 
 # =========================
 # SINGLE
 # =========================
-def classify_email(data):
+async def classify_email(data):
     prompt = build_prompt(data.email, data.labels)
 
-    raw = call_model(prompt)
+    raw = await call_model(prompt)
 
     parsed = extract_json(raw)
 
@@ -59,7 +62,7 @@ async def classify_emails_batch(data):
 
     prompt = build_batch_prompt(compressed_emails, labels)
 
-    raw = call_model(prompt)
+    raw = await call_model(prompt)
 
     print("RAW MODEL OUTPUT:\n", raw)
 
@@ -67,6 +70,12 @@ async def classify_emails_batch(data):
 
     if not parsed or not isinstance(parsed, list):
         return []
+
+
+    for item in parsed:
+        item["type"] = item.get("type", "primary")
+        item["action"] = item.get("action", "info")
+        item["confidence"] = float(item.get("confidence", 0.7))
 
     return parsed
 

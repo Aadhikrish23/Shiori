@@ -12,12 +12,14 @@ export const getAllLabels = async (
 export const createLabel = async (
   userId: string,
   name: string,
-  tags: string[]
+  tags: string[],
+  description: string
 ): Promise<ILabelConfig> => {
   const label = await LabelConfig.create({
     userId,
     name: name.toLowerCase(),
     tags: tags.map((t) => t.toLowerCase()),
+    description
   });
 
   await updateTagLibrary(name, tags);
@@ -30,13 +32,15 @@ export const updateLabel = async (
   userId: string,
   id: string,
   name: string,
-  tags: string[]
+  tags: string[],
+   description: string
 ): Promise<ILabelConfig | null> => {
   const label = await LabelConfig.findOneAndUpdate(
     { _id: id, userId },
     {
       name: name.toLowerCase(),
       tags: tags.map((t) => t.toLowerCase()),
+       description
     },
     { new: true }
   );

@@ -1,7 +1,9 @@
 import { Queue } from 'bullmq';
 import { redisConnection } from './connection';
+console.log("📬 QUEUE INIT");
 
 export const emailQueue = new Queue('email-processing', {
+  
   connection: redisConnection,
 
   defaultJobOptions: {

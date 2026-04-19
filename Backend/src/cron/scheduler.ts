@@ -9,21 +9,15 @@ function shouldRun(user: any): boolean {
   if (schedule.isRunning) return false;
 
   const now = new Date();
-  const lastRun = schedule.lastRunAt
-    ? new Date(schedule.lastRunAt)
-    : null;
+  const lastRun = schedule.lastRunAt ? new Date(schedule.lastRunAt) : null;
 
-  // 🔥 INTERVAL
   if (schedule.type === "interval") {
     if (!lastRun) return true;
 
-    const diffMinutes =
-      (now.getTime() - lastRun.getTime()) / 60000;
-
+    const diffMinutes = (now.getTime() - lastRun.getTime()) / 60000;
     return diffMinutes >= schedule.intervalMinutes;
   }
 
-  // 🔥 DAILY
   if (schedule.type === "daily") {
     const [hour, minute] = schedule.dailyTime.split(":").map(Number);
 
@@ -33,8 +27,7 @@ function shouldRun(user: any): boolean {
     if (!lastRun) return now >= todayRun;
 
     const diffDays =
-      (now.getTime() - lastRun.getTime()) /
-      (1000 * 60 * 60 * 24);
+      (now.getTime() - lastRun.getTime()) / (1000 * 60 * 60 * 24);
 
     return (
       now >= todayRun &&
@@ -48,7 +41,9 @@ function shouldRun(user: any): boolean {
 
 export const startScheduler = () => {
   cron.schedule("* * * * *", async () => {
-    console.log("⏱️ Scheduler tick...");
+    console.log("⏱️ Scheduler tick", {
+      time: new Date(),
+    });
 
     const users = await User.find({
       "schedule.enabled": true,
@@ -60,19 +55,39 @@ export const startScheduler = () => {
         if (!shouldRun(user)) continue;
 
         const now = new Date();
-
         const lastRun =
           user.schedule?.lastRunAt ||
           new Date(now.getTime() - 5 * 60 * 1000);
 
-        console.log(
-          `🚀 Scheduling: ${user.email} | ${lastRun} → ${now}`
+        const traceId = `cron-${user._id}-${Date.now()}`;
+
+        console.log("📅 SCHEDULER TRIGGER", {
+          traceId,
+          userId: user._id,
+          email: user.email,
+          lastRun,
+          now,
+        });
+
+        // 🔥 ATOMIC LOCK (IMPORTANT)
+        const updated = await User.findOneAndUpdate(
+          {
+            _id: user._id,
+            "schedule.isRunning": false,
+          },
+          {
+            $set: { "schedule.isRunning": true },
+          },
+          { new: true }
         );
 
-        // 🔥 mark running
-        await User.findByIdAndUpdate(user._id, {
-          "schedule.isRunning": true,
-        });
+        if (!updated) {
+          console.log("⛔ SKIPPED (already running)", {
+            traceId,
+            userId: user._id,
+          });
+          continue;
+        }
 
         await emailQueue.add(
           "process-user-emails",
@@ -80,10 +95,24 @@ export const startScheduler = () => {
             userId: user._id.toString(),
             startTime: lastRun,
             endTime: now,
+            jobType: user.plan === "premium" ? "premium" : "free",
+            traceId,
+          },
+          {
+            jobId: `cron-${user._id}`, // 🔥 prevents duplicates
+            priority: 1,
           }
         );
-      } catch (err) {
-        console.error("❌ Scheduler error:", err);
+
+        console.log("📤 SCHEDULER QUEUED", {
+          traceId,
+          userId: user._id,
+        });
+      } catch (err: any) {
+        console.error("❌ Scheduler error", {
+          error: err.message,
+          stack: err.stack,
+        });
       }
     }
   });

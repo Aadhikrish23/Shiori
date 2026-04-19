@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { ProcessedEmail } from "../models/processedEmail.model";
+import { encrypt, decrypt } from "../utils/crypto";
 
 // ✅ Check if already processed (per user)
 export const isProcessed = async (
@@ -12,22 +13,40 @@ export const isProcessed = async (
 
 // ✅ Mark as processed (per user)
 export const markAsProcessed = async (
-  userId:  mongoose.Schema.Types.ObjectId,
+  userId: mongoose.Schema.Types.ObjectId,
   messageId: string,
-  category: string
+  data: {
+    category: string;
+    type: string;
+    action: string;
+    confidence: number;
+
+    subject: string;
+    from: string;
+    snippet: string;
+  }
 ) => {
   await ProcessedEmail.updateOne(
     { userId, messageId },
     {
       $set: {
-        category,
+        // 📧 metadata
+        subject: data.subject,
+        from: data.from,
+        snippet: encrypt(data.snippet), // 🔐 encrypted
+
+        // 🧠 AI
+        category: data.category,
+        type: data.type,
+        action: data.action,
+        confidence: data.confidence,
+
         processedAt: new Date(),
       },
     },
-    { upsert: true } // 🔥 no duplicate crash
+    { upsert: true }
   );
 };
-
 export const getEmailStats = async (
   userId: mongoose.Schema.Types.ObjectId
 ) => {
@@ -93,4 +112,43 @@ export const getDashboardStats = async (
     labels: labelStats,
     activeLabels: labelStats.length,
   };
+};
+
+export const getProcessedEmailsWithFilters = async (
+  userId: mongoose.Schema.Types.ObjectId,
+  filters: {
+    action?: string;
+    type?: string;
+    label?: string;
+    page: number;
+    limit: number;
+  }
+) => {
+  const query: any = { userId };
+
+  if (filters.action) query.action = filters.action;
+  if (filters.type) query.type = filters.type;
+  if (filters.label) query.category = filters.label;
+
+  const skip = (filters.page - 1) * filters.limit;
+
+  const [emails, total] = await Promise.all([
+    ProcessedEmail.find(query)
+      .sort({ processedAt: -1 })
+      .skip(skip)
+      .limit(filters.limit)
+      .lean(),
+
+    ProcessedEmail.countDocuments(query),
+  ]);
+
+  return {
+    emails,
+    total,
+  };
+};
+export const getProcessedCount = async (
+  userId: mongoose.Schema.Types.ObjectId
+) => {
+  return await ProcessedEmail.countDocuments({ userId });
 };

@@ -21,3 +21,13 @@ export const getDashboard = async () => {
   const res = await API.get("/email/dashboard");
   return res.data;
 };
+export const getEmailList = async (params: {
+  page?: number;
+  limit?: number;
+  label?: string;
+  action?: string;
+  type?: string;
+}) => {
+  const res = await API.get("/email/list", { params });
+  return res.data;
+};

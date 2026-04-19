@@ -32,6 +32,12 @@ export interface BatchEmailInput {
 export interface BatchEmailOutput {
   id: string;
   label: string;
+
+  type: "primary" | "update" | "alert" | "promotion";
+  action: "needs_action" | "waiting" | "info" | "noise";
+
+  confidence: number;
+
   important: boolean;
 }
 export interface Email {
