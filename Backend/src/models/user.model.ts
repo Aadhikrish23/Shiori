@@ -4,8 +4,9 @@ export interface IUser extends Document {
   email: string;
   accessToken: string;
   refreshToken: string;
+  currentJobId: string;
 
-  plan: "free" | "premium"; 
+  plan: "free" | "premium";
 
   schedule: {
     enabled: boolean;
@@ -20,6 +21,7 @@ export interface IUser extends Document {
     lastProcessedAt: Date | null;
     lastProcessedCount: number;
     isRunning: boolean;
+    runningType: "cron" | "manual" | "bulk" | null;
   };
 }
 
@@ -27,8 +29,8 @@ const userSchema = new mongoose.Schema<IUser>({
   email: { type: String, required: true, unique: true },
   accessToken: { type: String, required: true },
   refreshToken: { type: String, required: true },
+  currentJobId: { type: String, default: null },
 
- 
   plan: {
     type: String,
     enum: ["free", "premium"],

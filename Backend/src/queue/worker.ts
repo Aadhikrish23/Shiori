@@ -47,7 +47,7 @@ async function handleJob(job: Job) {
       endTime: safeEndTime,
       includeProcessed,
       traceId,
-    });
+    },job);
 
     console.log("✅ WORKER DONE", {
       traceId,

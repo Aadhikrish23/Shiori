@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { emailQueue } from "../queue/emailQueue";
 import * as emailService from "../services/emailServices";
+import { User } from "../models/user.model";
 // 🔥 PROCESS DEFAULT (cron/manual trigger)
 export const processUserEmails = async (req: any, res: Response) => {
   const userId = req.user?.id;
@@ -11,11 +12,13 @@ export const processUserEmails = async (req: any, res: Response) => {
     });
   }
 
-  await emailQueue.add("process-user-emails", {
+  const job = await emailQueue.add("process-user-emails", {
     userId,
     jobType: req.user.plan === "premium" ? "premium" : "free",
   });
-
+  await User.findByIdAndUpdate(userId, {
+    currentJobId: job.id,
+  });
   res.json({ message: "User job added" });
 };
 
@@ -51,7 +54,7 @@ export const processCustomRange = async (
       includeProcessed,
     });
 
-    await emailQueue.add(
+    const job =  await emailQueue.add(
       "process-user-emails",
       {
         userId,
@@ -59,14 +62,16 @@ export const processCustomRange = async (
         endTime,
         includeProcessed,
         jobType: req.user.plan === "premium" ? "premium" : "free",
-         traceId,
+        traceId,
       },
       {
         jobId: `manual-${userId}-${Date.now()}`,
         priority: 2,
       },
     );
-
+     await User.findByIdAndUpdate(userId, {
+    currentJobId: job.id,
+  });
     res.json({
       message: "Custom processing job added",
     });
@@ -158,7 +163,7 @@ export const processBulkEmails = async (req: any, res: Response) => {
   }
 
   // 🔥 ADD BULK JOB
-  await emailQueue.add(
+ const job= await emailQueue.add(
     "process-user-emails",
     {
       userId,
@@ -170,7 +175,9 @@ export const processBulkEmails = async (req: any, res: Response) => {
       priority: 5, // 🔥 LOW priority
     },
   );
-
+ await User.findByIdAndUpdate(userId, {
+    currentJobId: job.id,
+  });
   res.json({
     message: "Bulk processing started",
   });

@@ -12,7 +12,7 @@ export const emailQueue = new Queue('email-processing', {
       type: 'exponential',
       delay: 5000, // 5 sec → 10 sec → 20 sec
     },
-    removeOnComplete: true,
+    removeOnComplete: 50,
     removeOnFail: false,
   },
-});
+}); 

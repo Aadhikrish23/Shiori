@@ -11,19 +11,16 @@ import ProcessModal from "../components/ProcessModal";
 
 const Emails = () => {
   const { emails, pagination, loading, fetchEmails } = useEmailList();
-  const { stats, fetchStats, processing } = useEmail();
-  const { saveSchedule, getSchedule } = useSchedule();
-  const [mode, setMode] = useState<"interval" | "daily">("interval");
-  const [unit, setUnit] = useState<"minutes" | "hours">("minutes");
-  const [value, setValue] = useState(5);
-  const [dailyInterval, setDailyInterval] = useState(1);
-  const [time, setTime] = useState("09:00");
-  const [initialized, setInitialized] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const { stats, fetchStats, job, fetchJobStatus, processBulk } = useEmail();
 
+  const { saveSchedule, getSchedule } = useSchedule();
+
+  // =========================
+  // FILTERS
+  // =========================
   const [filters, setFilters] = useState({
     page: 1,
-    limit: 20,
+    limit: 12,
     label: "",
     action: "",
     type: "",
@@ -31,45 +28,31 @@ const Emails = () => {
 
   const [openModal, setOpenModal] = useState(false);
 
-  // 🔥 scheduler state
+  // =========================
+  // SCHEDULER STATE
+  // =========================
   const [enabled, setEnabled] = useState(false);
-  const [interval, setIntervalValue] = useState(5);
+  const [mode, setMode] = useState<"interval" | "daily">("interval");
+
+  const [unit, setUnit] = useState<"minutes" | "hours">("minutes");
+  const [value, setValue] = useState(5);
+
+  const [dailyInterval, setDailyInterval] = useState(1);
+  const [time, setTime] = useState("09:00");
+
+  const [initialized, setInitialized] = useState(false);
 
   // =========================
-  // FETCH EMAILS
+  // INITIAL LOAD
   // =========================
   useEffect(() => {
     fetchEmails(filters);
   }, [filters]);
 
-  // =========================
-  // AUTO REFRESH AFTER PROCESS
-  // =========================
   useEffect(() => {
-    if (!processing) {
-      fetchEmails(filters);
-      fetchStats();
-    }
-  }, [processing]);
+    fetchStats();
+  }, []);
 
-  // =========================
-  // POLLING (REAL TIME FEEL)
-  // =========================
-  useEffect(() => {
-    let interval: any;
-
-    if (processing) {
-      interval = setInterval(() => {
-        fetchStats(); // only stats during processing
-      }, 3000);
-    }
-
-    return () => clearInterval(interval);
-  }, [processing]);
-
-  // =========================
-  // LOAD SCHEDULE
-  // =========================
   useEffect(() => {
     const load = async () => {
       try {
@@ -93,10 +76,8 @@ const Emails = () => {
           setDailyInterval(data.dailyInterval || 1);
           setTime(data.dailyTime || "09:00");
         }
-      } catch (err) {
-        console.error(err);
       } finally {
-        setInitialized(true); // 🔥 prevents overwrite
+        setInitialized(true);
       }
     };
 
@@ -104,19 +85,44 @@ const Emails = () => {
   }, []);
 
   // =========================
-  // SAVE SCHEDULE
+  // 🔥 POLLING (FIXED)
+  // =========================
+  // useEffect(() => {
+  //   if (!job || job.status !== "active") return;
+
+  //   const interval = setInterval(async () => {
+  //     const data = await fetchJobStatus();
+
+  //     if (!data || data.status !== "active") {
+  //       clearInterval(interval);
+  //     }
+  //   }, 2000);
+
+  //   return () => clearInterval(interval);
+  // }, [job?.status]);
+
+  // =========================
+  // 🔥 REFRESH AFTER COMPLETE
   // =========================
   useEffect(() => {
-    if (!initialized) return; // 🔥 CRITICAL
-
-    if (!enabled) {
-      saveSchedule({ enabled: false });
-      return;
+    if (job?.status === "completed") {
+      fetchEmails(filters);
+      fetchStats();
     }
+  }, [job?.status]);
+
+  // =========================
+  // 🔥 AUTO SAVE SCHEDULER
+  // =========================
+  useEffect(() => {
+    if (!initialized) return;
 
     const timeout = setTimeout(async () => {
       try {
-        setSaving(true);
+        if (!enabled) {
+          await saveSchedule({ enabled: false });
+          return;
+        }
 
         let payload: any = {
           enabled,
@@ -134,15 +140,16 @@ const Emails = () => {
 
         await saveSchedule(payload);
       } catch (err) {
-        console.error("Save failed", err);
-      } finally {
-        setSaving(false);
+        console.error(err);
       }
     }, 500);
 
     return () => clearTimeout(timeout);
   }, [enabled, mode, unit, value, dailyInterval, time, initialized]);
 
+  // =========================
+  // UI
+  // =========================
   return (
     <Layout>
       <div className="space-y-6">
@@ -151,21 +158,141 @@ const Emails = () => {
           <div>
             <h1 className="text-2xl font-bold">Emails</h1>
             <p className="text-sm text-gray-500">
-              View and verify AI email classification
+              AI-powered email classification
             </p>
           </div>
 
-          <button
-            onClick={() => setOpenModal(true)}
-            disabled={processing}
-            className={`px-4 py-2 rounded text-white ${
-              processing
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"
+          <div className="flex gap-3">
+            <button
+              onClick={() => setOpenModal(true)}
+              className="px-4 py-2 rounded bg-blue-600 text-white"
+            >
+              Custom Process
+            </button>
+
+            <button
+              onClick={async () => {
+                const ok = await processBulk();
+                if (ok) alert("Bulk started 🚀");
+              }}
+              className="px-4 py-2 rounded bg-purple-600 text-white"
+            >
+              Bulk Process
+            </button>
+          </div>
+        </div>
+
+        {/* 🔥 PROGRESS
+        {job?.status === "active" && (
+          <div className="bg-white border rounded-xl p-5">
+            <div className="flex justify-between mb-2">
+              <span className="font-medium">Processing...</span>
+              <span>{job.progress || 0}%</span>
+            </div>
+
+            <div className="h-2 bg-gray-200 rounded">
+              <div
+                className="h-2 bg-blue-600 transition-all duration-300"
+                style={{ width: `${job.progress || 0}%` }}
+              />
+            </div>
+
+            <button
+              onClick={() => emailService.cancelJob()}
+              className="mt-3 px-3 py-1 bg-red-500 text-white rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        )} */}
+
+        {/* 🔥 AUTOMATION */}
+        <div className="bg-white p-5 rounded-xl border space-y-4">
+          <h2 className="font-semibold text-lg">Automation</h2>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+            />
+            <span>Enable automation</span>
+          </div>
+
+          <div
+            className={`space-y-4 ${
+              !enabled ? "opacity-50 pointer-events-none" : ""
             }`}
           >
-            {processing ? "Processing..." : "Process Emails"}
-          </button>
+            {/* MODE */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setMode("interval")}
+                className={`px-3 py-1 rounded ${
+                  mode === "interval" ? "bg-blue-600 text-white" : "bg-gray-200"
+                }`}
+              >
+                Interval
+              </button>
+
+              <button
+                onClick={() => setMode("daily")}
+                className={`px-3 py-1 rounded ${
+                  mode === "daily" ? "bg-blue-600 text-white" : "bg-gray-200"
+                }`}
+              >
+                Daily
+              </button>
+            </div>
+
+            {/* INTERVAL */}
+            {mode === "interval" && (
+              <div className="flex gap-2 items-center">
+                <span>Every</span>
+
+                <input
+                  type="number"
+                  value={value}
+                  onChange={(e) => setValue(Number(e.target.value))}
+                  className="border p-2 rounded w-20"
+                />
+
+                <select
+                  value={unit}
+                  onChange={(e) =>
+                    setUnit(e.target.value as "minutes" | "hours")
+                  }
+                  className="border p-2 rounded"
+                >
+                  <option value="minutes">Minutes</option>
+                  <option value="hours">Hours</option>
+                </select>
+              </div>
+            )}
+
+            {/* DAILY */}
+            {mode === "daily" && (
+              <div className="flex gap-3 items-center">
+                <span>Every</span>
+
+                <input
+                  type="number"
+                  value={dailyInterval}
+                  onChange={(e) => setDailyInterval(Number(e.target.value))}
+                  className="border p-2 rounded w-20"
+                />
+
+                <span>day(s)</span>
+
+                <input
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="border p-2 rounded"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 🔥 STATS */}
@@ -194,128 +321,10 @@ const Emails = () => {
           </div>
         </div>
 
-        {/* 🤖 AUTOMATION */}
-        <div className="bg-white p-5 rounded border space-y-5">
-          <h2 className="font-semibold text-lg">Automation</h2>
-
-          {/* ENABLE */}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={enabled}
-              onChange={(e) => setEnabled(e.target.checked)}
-            />
-            <span>Enable automation</span>
-            {saving && (
-              <span className="text-sm text-gray-400 ml-2">Saving...</span>
-            )}
-          </div>
-
-          <div
-            className={`space-y-4 ${
-              !enabled ? "opacity-50 pointer-events-none" : ""
-            }`}
-          >
-            {/* MODE */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setMode("interval")}
-                className={`px-3 py-1 rounded ${
-                  mode === "interval" ? "bg-blue-600 text-white" : "bg-gray-200"
-                }`}
-              >
-                Interval
-              </button>
-
-              <button
-                onClick={() => setMode("daily")}
-                className={`px-3 py-1 rounded ${
-                  mode === "daily" ? "bg-blue-600 text-white" : "bg-gray-200"
-                }`}
-              >
-                Daily
-              </button>
-            </div>
-
-            {/* INTERVAL */}
-            {mode === "interval" && (
-              <div className="flex gap-2 items-center">
-                <span>Every</span>
-
-                <select
-                  value={value}
-                  onChange={(e) => setValue(Number(e.target.value))}
-                  className="border p-2 rounded"
-                >
-                  {unit === "minutes" ? (
-                    <>
-                      <option value={5}>5</option>
-                      <option value={15}>15</option>
-                      <option value={30}>30</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value={1}>1</option>
-                      <option value={2}>2</option>
-                      <option value={5}>5</option>
-                    </>
-                  )}
-                </select>
-
-                <select
-                  value={unit}
-                  onChange={(e) =>
-                    setUnit(e.target.value as "minutes" | "hours")
-                  }
-                  className="border p-2 rounded"
-                >
-                  <option value="minutes">Minutes</option>
-                  <option value="hours">Hours</option>
-                </select>
-              </div>
-            )}
-
-            {/* DAILY */}
-            {mode === "daily" && (
-              <div className="space-y-3">
-                <div className="flex gap-2 items-center">
-                  <span>Every</span>
-
-                  <input
-                    type="number"
-                    min={1}
-                    value={dailyInterval}
-                    onChange={(e) => setDailyInterval(Number(e.target.value))}
-                    className="border p-2 rounded w-20"
-                  />
-
-                  <span>day(s)</span>
-                </div>
-
-                <input
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="border p-2 rounded"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* FILTERS */}
         <EmailFilters filters={filters} setFilters={setFilters} />
 
-        {/* TABLE HEADER */}
-        <div className="hidden md:grid grid-cols-12 gap-4 p-4 bg-gray-100 text-xs font-semibold">
-          <div className="col-span-5">Email</div>
-          <div className="col-span-2">Label</div>
-          <div className="col-span-2">Action</div>
-          <div className="col-span-2">Confidence</div>
-          <div className="col-span-1">Date</div>
-        </div>
-
-        {/* EMAIL LIST */}
+        {/* LIST */}
         <div className="bg-white rounded border">
           {loading ? (
             <p className="p-6 text-gray-500">Loading...</p>
@@ -326,14 +335,20 @@ const Emails = () => {
           )}
         </div>
 
-        {/* PAGINATION */}
         <Pagination
           pagination={pagination}
           onPageChange={(page) => setFilters({ ...filters, page })}
         />
       </div>
 
-      <ProcessModal open={openModal} onClose={() => setOpenModal(false)} />
+      <ProcessModal
+        open={openModal}
+        onClose={() => setOpenModal(false)}
+        onComplete={() => {
+          fetchEmails(filters);
+          fetchStats();
+        }}
+      />
     </Layout>
   );
 };

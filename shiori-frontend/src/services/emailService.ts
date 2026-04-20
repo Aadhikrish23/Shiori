@@ -31,3 +31,16 @@ export const getEmailList = async (params: {
   const res = await API.get("/email/list", { params });
   return res.data;
 };
+export const getJobStatus = async () => {
+  const res = await API.get("/email/job-status");
+  return res.data;
+};
+
+export const cancelJob = async () => {
+  const res = await API.post("/email/cancel-job");
+  return res.data;
+};
+export const processBulk = async () => {
+  const res = await API.post("/email/process-bulk");
+  return res.data;
+};

@@ -5,30 +5,32 @@ interface Stats {
   processedToday: number;
   lastProcessedAt: string | null;
   lastRunAt?: string | null;
-  lastActivityAt?: string | null;
-  lastActivityCount?: number;
 }
 
 interface Store {
   stats: Stats | null;
   dashboard: any;
   loading: boolean;
-  processing: boolean;
+
+  job: any; // 🔥 NEW
 
   setStats: (stats: Stats) => void;
   setDashboard: (data: any) => void;
   setLoading: (val: boolean) => void;
-  setProcessing: (val: boolean) => void;
+
+  setJob: (job: any) => void; // 🔥 NEW
 }
 
 export const useEmailStore = create<Store>((set) => ({
   stats: null,
   dashboard: null,
   loading: false,
-  processing: false,
+
+  job: null,
+
+  setJob: (job) => set({ job }),
 
   setStats: (stats) => set({ stats }),
   setDashboard: (data) => set({ dashboard: data }),
   setLoading: (val) => set({ loading: val }),
-  setProcessing: (val) => set({ processing: val }),
 }));

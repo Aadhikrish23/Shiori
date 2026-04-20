@@ -6,13 +6,16 @@ export const useEmail = () => {
     stats,
     dashboard,
     loading,
-    processing,
     setStats,
     setDashboard,
     setLoading,
-    setProcessing,
+    job,
+    setJob,
   } = useEmailStore();
 
+  // =========================
+  // STATS
+  // =========================
   const fetchStats = async () => {
     try {
       setLoading(true);
@@ -28,14 +31,35 @@ export const useEmail = () => {
     setDashboard(data);
   };
 
+  // =========================
+  // 🔥 JOB STATUS
+  // =========================
+  const fetchJobStatus = async () => {
+    try {
+      const data = await emailService.getJobStatus();
+
+      if (!data || data.status === "completed") {
+        setJob(null);
+        return null;
+      }
+
+      setJob(data);
+      return data;
+    } catch {
+      setJob(null);
+      return null;
+    }
+  };
+
+  // =========================
+  // PROCESS EMAILS
+  // =========================
   const processEmails = async (options?: {
     startDate?: string;
     endDate?: string;
     includeProcessed?: boolean;
   }) => {
     try {
-      setProcessing(true);
-
       if (options?.startDate && options?.endDate) {
         await emailService.processCustom({
           startDate: options.startDate,
@@ -46,12 +70,27 @@ export const useEmail = () => {
         await emailService.processEmails();
       }
 
-      return true; // 🔥 important
+      // 🔥 IMPORTANT: fetch job immediately
+      await fetchJobStatus();
+
+      return true;
     } catch (err) {
       console.error(err);
       return false;
-    } finally {
-      setProcessing(false);
+    }
+  };
+
+  const processBulk = async () => {
+    try {
+      await emailService.processBulk();
+
+      // 🔥 IMPORTANT
+      await fetchJobStatus();
+
+      return true;
+    } catch (err) {
+      console.error(err);
+      return false;
     }
   };
 
@@ -59,9 +98,11 @@ export const useEmail = () => {
     stats,
     dashboard,
     loading,
-    processing,
     fetchStats,
     fetchDashboard,
     processEmails,
+    processBulk,
+    job,
+    fetchJobStatus,
   };
 };

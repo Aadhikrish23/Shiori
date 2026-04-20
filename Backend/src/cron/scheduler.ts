@@ -6,34 +6,69 @@ function shouldRun(user: any): boolean {
   const schedule = user.schedule;
 
   if (!schedule?.enabled) return false;
-  if (schedule.isRunning) return false;
 
   const now = new Date();
-  const lastRun = schedule.lastRunAt ? new Date(schedule.lastRunAt) : null;
+  const lastRun = schedule.lastRunAt
+    ? new Date(schedule.lastRunAt)
+    : null;
 
+  // =========================
+  // INTERVAL
+  // =========================
   if (schedule.type === "interval") {
     if (!lastRun) return true;
 
-    const diffMinutes = (now.getTime() - lastRun.getTime()) / 60000;
+    const diffMinutes =
+      (now.getTime() - lastRun.getTime()) / 60000;
+
     return diffMinutes >= schedule.intervalMinutes;
   }
 
+  // =========================
+  // DAILY
+  // =========================
   if (schedule.type === "daily") {
-    const [hour, minute] = schedule.dailyTime.split(":").map(Number);
+    const [hour, minute] = schedule.dailyTime
+      .split(":")
+      .map(Number);
 
-    const todayRun = new Date();
-    todayRun.setHours(hour, minute, 0, 0);
-
-    if (!lastRun) return now >= todayRun;
-
-    const diffDays =
-      (now.getTime() - lastRun.getTime()) / (1000 * 60 * 60 * 24);
-
-    return (
-      now >= todayRun &&
-      diffDays >= schedule.dailyInterval &&
-      lastRun < todayRun
+    // ✅ Create UTC date safely (no mutation bugs)
+    const scheduledUTC = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        hour,
+        minute,
+        0,
+        0
+      )
     );
+
+    // IST offset → subtract 5h30m
+    scheduledUTC.setUTCMinutes(
+      scheduledUTC.getUTCMinutes() - 330
+    );
+
+    // ✅ timezone-safe same day check
+    const sameDay =
+      lastRun &&
+      lastRun.toISOString().slice(0, 10) ===
+        now.toISOString().slice(0, 10);
+
+    const alreadyRanToday =
+      lastRun &&
+      lastRun >= scheduledUTC &&
+      sameDay;
+
+    console.log("🧠 DAILY FINAL", {
+      now: now.toISOString(),
+      scheduledUTC: scheduledUTC.toISOString(),
+      lastRun: lastRun?.toISOString(),
+      alreadyRanToday,
+    });
+
+    return now >= scheduledUTC && !alreadyRanToday;
   }
 
   return false;
@@ -47,19 +82,55 @@ export const startScheduler = () => {
 
     const users = await User.find({
       "schedule.enabled": true,
-      "schedule.isRunning": false,
     });
 
     for (const user of users) {
       try {
+        const schedule = user.schedule;
+
+        // =========================
+        // 🔥 HANDLE RUNNING STATE
+        // =========================
+        if (schedule.isRunning) {
+          if (schedule.runningType === "cron") {
+            const lastRun = schedule.lastRunAt
+              ? new Date(schedule.lastRunAt)
+              : null;
+
+            const now = new Date();
+
+            // 🔥 stale cron recovery (10 min)
+            if (
+              lastRun &&
+              now.getTime() - lastRun.getTime() >
+                10 * 60 * 1000
+            ) {
+              console.log(
+                "⚠️ RESETTING STALE CRON LOCK",
+                user._id
+              );
+
+              await User.findByIdAndUpdate(user._id, {
+                "schedule.isRunning": false,
+                "schedule.runningType": null,
+              });
+            } else {
+              continue;
+            }
+          } else {
+            // bulk/manual → do nothing
+            continue;
+          }
+        }
+
         if (!shouldRun(user)) continue;
 
         const now = new Date();
         const lastRun =
-          user.schedule?.lastRunAt ||
+          schedule.lastRunAt ||
           new Date(now.getTime() - 5 * 60 * 1000);
 
-        const traceId = `cron-${user._id}-${Date.now()}`;
+        const traceId = `cron-traceId-${user._id}-${Date.now()}`;
 
         console.log("📅 SCHEDULER TRIGGER", {
           traceId,
@@ -69,21 +140,25 @@ export const startScheduler = () => {
           now,
         });
 
-        // 🔥 ATOMIC LOCK (IMPORTANT)
+        // =========================
+        // 🔒 ATOMIC LOCK
+        // =========================
         const updated = await User.findOneAndUpdate(
           {
             _id: user._id,
             "schedule.isRunning": false,
           },
           {
-            $set: { "schedule.isRunning": true },
+            $set: {
+              "schedule.isRunning": true,
+              "schedule.runningType": "cron",
+            },
           },
-          { new: true }
+          { returnDocument: "after" }
         );
 
         if (!updated) {
-          console.log("⛔ SKIPPED (already running)", {
-            traceId,
+          console.log("⛔ SKIPPED (race condition)", {
             userId: user._id,
           });
           continue;
@@ -95,11 +170,12 @@ export const startScheduler = () => {
             userId: user._id.toString(),
             startTime: lastRun,
             endTime: now,
-            jobType: user.plan === "premium" ? "premium" : "free",
+            jobType:
+              user.plan === "premium" ? "premium" : "free",
             traceId,
           },
           {
-            jobId: `cron-${user._id}`, // 🔥 prevents duplicates
+            jobId: `cron-${user._id}-${Date.now()}`,
             priority: 1,
           }
         );
@@ -108,10 +184,18 @@ export const startScheduler = () => {
           traceId,
           userId: user._id,
         });
+
+        // =========================
+        // 🔥 OPTIONAL SAFETY UPDATE
+        // =========================
+        // (prevents duplicate if worker crashes early)
+        await User.findByIdAndUpdate(user._id, {
+          "schedule.lastRunAt": now,
+        });
+
       } catch (err: any) {
         console.error("❌ Scheduler error", {
           error: err.message,
-          stack: err.stack,
         });
       }
     }
