@@ -1,10 +1,11 @@
 interface Props {
   email: any;
+  onClick: (email: any) => void;
 }
 
-const EmailRow = ({ email }: Props) => {
+const EmailRow = ({ email,onClick }: Props) => {
   return (
-    <div className="grid grid-cols-12 gap-4 p-4 border-b hover:bg-gray-50 transition">
+    <div  onClick={() => onClick(email)} className="grid grid-cols-12 gap-4 p-4 border-b hover:bg-gray-50 transition">
       
       {/* SUBJECT */}
       <div className="col-span-5">

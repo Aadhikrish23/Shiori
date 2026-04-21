@@ -5,7 +5,7 @@ import { encrypt, decrypt } from "../utils/crypto";
 // ✅ Check if already processed (per user)
 export const isProcessed = async (
   userId: mongoose.Schema.Types.ObjectId,
-  messageId: string
+  messageId: string,
 ): Promise<boolean> => {
   const exists = await ProcessedEmail.findOne({ userId, messageId });
   return !!exists;
@@ -24,7 +24,7 @@ export const markAsProcessed = async (
     subject: string;
     from: string;
     snippet: string;
-  }
+  },
 ) => {
   await ProcessedEmail.updateOne(
     { userId, messageId },
@@ -44,12 +44,10 @@ export const markAsProcessed = async (
         processedAt: new Date(),
       },
     },
-    { upsert: true }
+    { upsert: true },
   );
 };
-export const getEmailStats = async (
-  userId: mongoose.Schema.Types.ObjectId
-) => {
+export const getEmailStats = async (userId: mongoose.Schema.Types.ObjectId) => {
   const totalProcessed = await ProcessedEmail.countDocuments({ userId });
 
   const todayStart = new Date();
@@ -73,14 +71,15 @@ export const getEmailStats = async (
     lastProcessedAt: lastProcessed?.processedAt || null,
 
     // 🔥 NEW
-    lastRunAt: user?.schedule?.lastRunAt || null,
+    lastRunAt: user?.schedule?.lastScheduledRunAt || null,
+    lastManualRunAt: user?.schedule?.lastManualRunAt || null,
     lastActivityAt: user?.schedule?.lastProcessedAt || null,
     lastActivityCount: user?.schedule?.lastProcessedCount || 0,
   };
 };
 
 export const getDashboardStats = async (
-  userId: mongoose.Schema.Types.ObjectId
+  userId: mongoose.Schema.Types.ObjectId,
 ) => {
   // 🔥 LABEL COUNTS
   const labelStats = await ProcessedEmail.aggregate([
@@ -122,7 +121,7 @@ export const getProcessedEmailsWithFilters = async (
     label?: string;
     page: number;
     limit: number;
-  }
+  },
 ) => {
   const query: any = { userId };
 
@@ -148,7 +147,7 @@ export const getProcessedEmailsWithFilters = async (
   };
 };
 export const getProcessedCount = async (
-  userId: mongoose.Schema.Types.ObjectId
+  userId: mongoose.Schema.Types.ObjectId,
 ) => {
   return await ProcessedEmail.countDocuments({ userId });
 };

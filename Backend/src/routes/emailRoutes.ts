@@ -6,7 +6,8 @@ import {
   processUserEmails,
   getEmailListController,
   getEmailOverviewController,
-  processBulkEmails
+  processBulkEmails,
+  getSingleEmailController
 } from "../controllers/emailController";
 import { cancelJob, getJobStatus } from "../controllers/jobController";
 
@@ -21,5 +22,6 @@ router.get("/overview", getEmailOverviewController);
 router.post("/process-bulk", processBulkEmails);
 router.get("/job-status", getJobStatus);
 router.post("/cancel-job", cancelJob);
+router.get("/:id", getSingleEmailController);
 
 export default router;

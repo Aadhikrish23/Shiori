@@ -298,3 +298,61 @@ export async function getTotalEmailCount(
 
   return res.data.resultSizeEstimate || 0;
 }
+
+export async function getFullEmail(
+  userId: mongoose.Schema.Types.ObjectId,
+  messageId: string
+) {
+  const gmail = await getGmailClient(userId);
+
+  const res = await gmail.users.messages.get({
+    userId: "me",
+    id: messageId,
+  });
+
+  const payload = res.data.payload;
+  const headers = payload?.headers || [];
+
+  const subject =
+    headers.find((h: any) => h.name === "Subject")?.value || "";
+
+  const from =
+    headers.find((h: any) => h.name === "From")?.value || "";
+
+  // 🔥 extract body
+  const body = extractBody(payload);
+
+  return {
+    messageId,
+    subject,
+    from,
+    body,
+    snippet: res.data.snippet || "",
+  };
+}
+function extractBody(payload: any): string {
+  if (!payload) return "";
+
+  // ✅ direct body
+  if (payload.body?.data) {
+    return Buffer.from(payload.body.data, "base64").toString("utf-8");
+  }
+
+  // ✅ multipart
+  if (payload.parts) {
+    for (const part of payload.parts) {
+      if (part.mimeType === "text/plain" && part.body?.data) {
+        return Buffer.from(part.body.data, "base64").toString("utf-8");
+      }
+    }
+
+    // fallback → html
+    for (const part of payload.parts) {
+      if (part.mimeType === "text/html" && part.body?.data) {
+        return Buffer.from(part.body.data, "base64").toString("utf-8");
+      }
+    }
+  }
+
+  return "";
+}

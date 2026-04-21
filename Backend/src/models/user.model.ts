@@ -17,7 +17,8 @@ export interface IUser extends Document {
     dailyInterval: number;
     dailyTime: string;
 
-    lastRunAt: Date | null;
+    lastScheduledRunAt: Date | null;
+    lastManualRunAt: Date | null;
     lastProcessedAt: Date | null;
     lastProcessedCount: number;
     isRunning: boolean;
@@ -51,7 +52,8 @@ const userSchema = new mongoose.Schema<IUser>({
     dailyInterval: { type: Number, default: 1 },
     dailyTime: { type: String, default: "09:00" },
 
-    lastRunAt: { type: Date, default: null },
+    lastScheduledRunAt: { type: Date, default: null },
+    lastManualRunAt: { type: Date, default: null },
     isRunning: { type: Boolean, default: false },
     lastProcessedAt: { type: Date, default: null },
     lastProcessedCount: { type: Number, default: 0 },

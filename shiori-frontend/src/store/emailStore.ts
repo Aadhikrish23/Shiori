@@ -4,7 +4,7 @@ interface Stats {
   totalProcessed: number;
   processedToday: number;
   lastProcessedAt: string | null;
-  lastRunAt?: string | null;
+  lastManualRunAt?: string | null;
 }
 
 interface Store {

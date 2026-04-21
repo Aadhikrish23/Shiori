@@ -41,13 +41,16 @@ async function handleJob(job: Job) {
   });
 
   try {
-    const result = await processEmailsJob({
-      userId,
-      startTime: safeStartTime,
-      endTime: safeEndTime,
-      includeProcessed,
-      traceId,
-    },job);
+    const result = await processEmailsJob(
+      {
+        userId,
+        startTime: safeStartTime,
+        endTime: safeEndTime,
+        includeProcessed,
+        traceId,
+      },
+      job,
+    );
 
     console.log("✅ WORKER DONE", {
       traceId,
@@ -70,10 +73,20 @@ async function handleJob(job: Job) {
     });
     throw err;
   } finally {
-    await User.findByIdAndUpdate(userId, {
+    const isCron =
+      job.data.jobId?.startsWith("cron") || job.id?.startsWith("cron");
+
+    const update: any = {
       "schedule.isRunning": false,
-      "schedule.lastRunAt": new Date(),
-    });
+    };
+
+    if (isCron) {
+      update["schedule.lastScheduledRunAt"] = new Date();
+    } else {
+      update["schedule.lastManualRunAt"] = new Date();
+    }
+
+    await User.findByIdAndUpdate(userId, update);
   }
 }
 
@@ -116,7 +129,7 @@ export const emailWorker = new Worker(
   {
     connection: redisConnection,
     concurrency: 3, // adjust as needed
-  }
+  },
 );
 
 // ==============================

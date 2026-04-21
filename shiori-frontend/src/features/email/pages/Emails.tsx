@@ -8,12 +8,17 @@ import EmailRow from "../components/EmailRow";
 import EmailFilters from "../components/EmailFilters";
 import Pagination from "../components/Pagination";
 import ProcessModal from "../components/ProcessModal";
+import { useScheduler } from "../hooks/useScheduler";
+import EmailDrawer from "../components/EmailDrawer";
+import { getSingleEmail } from "../../../services/emailService";
 
 const Emails = () => {
   const { emails, pagination, loading, fetchEmails } = useEmailList();
   const { stats, fetchStats, job, fetchJobStatus, processBulk } = useEmail();
-
+  const { nextRun, remaining, refreshNextRun, formatNextRun } =
+    useScheduler(fetchStats);
   const { saveSchedule, getSchedule } = useSchedule();
+  const [selectedEmail, setSelectedEmail] = useState<any>(null);
 
   // =========================
   // FILTERS
@@ -84,23 +89,18 @@ const Emails = () => {
     load();
   }, []);
 
-  // =========================
-  // 🔥 POLLING (FIXED)
-  // =========================
-  // useEffect(() => {
-  //   if (!job || job.status !== "active") return;
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!selectedEmail) return;
 
-  //   const interval = setInterval(async () => {
-  //     const data = await fetchJobStatus();
+      if (e.key === "Escape") {
+        setSelectedEmail(null);
+      }
+    };
 
-  //     if (!data || data.status !== "active") {
-  //       clearInterval(interval);
-  //     }
-  //   }, 2000);
-
-  //   return () => clearInterval(interval);
-  // }, [job?.status]);
-
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedEmail]);
   // =========================
   // 🔥 REFRESH AFTER COMPLETE
   // =========================
@@ -108,12 +108,10 @@ const Emails = () => {
     if (job?.status === "completed") {
       fetchEmails(filters);
       fetchStats();
+      refreshNextRun(); // 🔥 important
     }
   }, [job?.status]);
 
-  // =========================
-  // 🔥 AUTO SAVE SCHEDULER
-  // =========================
   useEffect(() => {
     if (!initialized) return;
 
@@ -121,6 +119,9 @@ const Emails = () => {
       try {
         if (!enabled) {
           await saveSchedule({ enabled: false });
+
+          // ✅ CLEAR UI STATE
+          refreshNextRun();
           return;
         }
 
@@ -139,6 +140,9 @@ const Emails = () => {
         }
 
         await saveSchedule(payload);
+
+        // ✅ UPDATE UI IMMEDIATELY
+        refreshNextRun();
       } catch (err) {
         console.error(err);
       }
@@ -146,6 +150,25 @@ const Emails = () => {
 
     return () => clearTimeout(timeout);
   }, [enabled, mode, unit, value, dailyInterval, time, initialized]);
+
+  const handleEmailClick = async (email: any) => {
+    setSelectedEmail({ ...email, loading: true });
+
+    try {
+      const full = await getSingleEmail(email.messageId);
+
+      setSelectedEmail({
+        ...email,
+        ...full,
+        loading: false,
+      });
+    } catch {
+      setSelectedEmail({
+        ...email,
+        loading: false,
+      });
+    }
+  };
 
   // =========================
   // UI
@@ -217,6 +240,67 @@ const Emails = () => {
               onChange={(e) => setEnabled(e.target.checked)}
             />
             <span>Enable automation</span>
+          </div>
+          <div
+            className={`p-5 rounded-xl border ${
+              enabled
+                ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100"
+                : "bg-gray-50 border-gray-200"
+            }`}
+          >
+            {/* HEADER */}
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-xs text-gray-500">Next Run</p>
+                {!enabled ? (
+                  <p className="text-sm text-gray-400">
+                    Automation is disabled
+                  </p>
+                ) : (
+                  <p className="text-lg font-semibold text-gray-900">
+                    {formatNextRun(nextRun)}
+                  </p>
+                )}
+              </div>
+
+              {/* STATUS BADGE */}
+              <div>
+                <div>
+                  {!enabled ? (
+                    <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-500">
+                      Disabled
+                    </span>
+                  ) : job?.status === "active" ? (
+                    <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700">
+                      Running
+                    </span>
+                  ) : (
+                    <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600">
+                      Idle
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* COUNTDOWN */}
+            <div className="mt-4">
+              <p className="text-xs text-gray-500">Starts in</p>
+              {!enabled ? (
+                <p className="text-sm text-gray-400">—</p>
+              ) : (
+                <p className="text-2xl font-bold text-blue-600">
+                  {remaining || "—"}
+                </p>
+              )}
+            </div>
+
+            {/* PROGRESS BAR (optional but 🔥) */}
+            {enabled && remaining && (
+              <div className="mt-4 h-2 bg-blue-100 rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 animate-pulse w-full" />
+              </div>
+            )}
           </div>
 
           <div
@@ -314,8 +398,8 @@ const Emails = () => {
           <div className="bg-white p-4 rounded border">
             <p className="text-xs text-gray-500">Last Run</p>
             <p className="text-sm">
-              {stats?.lastRunAt
-                ? new Date(stats.lastRunAt).toLocaleString()
+              {stats?.lastManualRunAt
+                ? new Date(stats.lastManualRunAt).toLocaleString()
                 : "Never"}
             </p>
           </div>
@@ -331,7 +415,13 @@ const Emails = () => {
           ) : emails.length === 0 ? (
             <p className="p-6 text-gray-500">No emails found</p>
           ) : (
-            emails.map((email) => <EmailRow key={email._id} email={email} />)
+            emails.map((email) => (
+              <EmailRow
+                key={email._id}
+                email={email}
+                onClick={handleEmailClick}
+              />
+            ))
           )}
         </div>
 
@@ -348,6 +438,11 @@ const Emails = () => {
           fetchEmails(filters);
           fetchStats();
         }}
+      />
+      <EmailDrawer
+        email={selectedEmail}
+        open={!!selectedEmail}
+        onClose={() => setSelectedEmail(null)}
       />
     </Layout>
   );

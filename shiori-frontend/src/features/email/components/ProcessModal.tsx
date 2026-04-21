@@ -86,7 +86,7 @@ const today = new Date().toISOString().split('T')[0];
               <input
                 type="date"
                 value={startDate}
-                max={endDate}
+                max={endDate?endDate:today}
                
                 onChange={(e) => setStartDate(e.target.value)}
                 className="border p-2 rounded w-full"

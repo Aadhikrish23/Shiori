@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { emailQueue } from "../queue/emailQueue";
 import * as emailService from "../services/emailServices";
 import { User } from "../models/user.model";
+import { getFullEmail } from "../services/gmailService";
 // 🔥 PROCESS DEFAULT (cron/manual trigger)
 export const processUserEmails = async (req: any, res: Response) => {
   const userId = req.user?.id;
@@ -181,4 +182,22 @@ export const processBulkEmails = async (req: any, res: Response) => {
   res.json({
     message: "Bulk processing started",
   });
+};
+
+export const getSingleEmailController = async (req: any, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const messageId = req.params.id;
+
+    if (!userId || !messageId) {
+      return res.status(400).json({ message: "Invalid request" });
+    }
+
+    const email = await getFullEmail(userId, messageId);
+
+    res.json(email);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch email" });
+  }
 };

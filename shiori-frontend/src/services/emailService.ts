@@ -44,3 +44,7 @@ export const processBulk = async () => {
   const res = await API.post("/email/process-bulk");
   return res.data;
 };
+export const getSingleEmail = async (id: string) => {
+  const res = await API.get(`/email/${id}`);
+  return res.data;
+};

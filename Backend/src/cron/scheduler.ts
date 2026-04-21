@@ -8,8 +8,8 @@ function shouldRun(user: any): boolean {
   if (!schedule?.enabled) return false;
 
   const now = new Date();
-  const lastRun = schedule.lastRunAt
-    ? new Date(schedule.lastRunAt)
+  const lastRun = schedule.lastScheduledRunAt
+    ? new Date(schedule.lastScheduledRunAt)
     : null;
 
   // =========================
@@ -93,8 +93,8 @@ export const startScheduler = () => {
         // =========================
         if (schedule.isRunning) {
           if (schedule.runningType === "cron") {
-            const lastRun = schedule.lastRunAt
-              ? new Date(schedule.lastRunAt)
+            const lastRun = schedule.lastScheduledRunAt
+              ? new Date(schedule.lastScheduledRunAt)
               : null;
 
             const now = new Date();
@@ -126,8 +126,7 @@ export const startScheduler = () => {
         if (!shouldRun(user)) continue;
 
         const now = new Date();
-        const lastRun =
-          schedule.lastRunAt ||
+        const lastRun = schedule.lastScheduledRunAt ||
           new Date(now.getTime() - 5 * 60 * 1000);
 
         const traceId = `cron-traceId-${user._id}-${Date.now()}`;
@@ -190,7 +189,7 @@ export const startScheduler = () => {
         // =========================
         // (prevents duplicate if worker crashes early)
         await User.findByIdAndUpdate(user._id, {
-          "schedule.lastRunAt": now,
+          "schedule.lastScheduledRunAt": now,
         });
 
       } catch (err: any) {
