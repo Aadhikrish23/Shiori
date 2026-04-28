@@ -3,9 +3,10 @@ import {
   getEmailStats,
   getDashboardStats,getProcessedEmailsWithFilters,getProcessedCount
 } from "../repositories/processedEmailRepo";
-import { getTotalEmailCount } from "./gmailService";
+import { archiveEmail, getTotalEmailCount } from "./gmailService";
 
 import { decrypt } from "../utils/crypto";
+import { ProcessedEmail } from "../models/processedEmail.model";
 
 
 export const getStats = async (userId: mongoose.Schema.Types.ObjectId) => {
@@ -29,6 +30,8 @@ export const getEmailList = async (
     action: query.action,
     type: query.type,
     label: query.label,
+    isArchived:query.isArchived,
+    isImportant:query.isImportant,
     page,
     limit,
   };
@@ -70,4 +73,27 @@ export const getEmailOverview = async (
     totalProcessed: processed,
     totalUnprocessed: unprocessed,
   };
+};
+export const archiveNoiseEmails = async (userId: mongoose.Schema.Types.ObjectId) => {
+  const noiseEmails = await ProcessedEmail.find({
+    userId,
+    action: "noise",
+    isArchived: { $ne: true },
+  });
+
+  for (const email of noiseEmails) {
+    await archiveEmail(userId, email.messageId);
+  }
+
+  await ProcessedEmail.updateMany(
+    {
+      userId,
+      action: "noise",
+    },
+    {
+      $set: { isArchived: true, isImportant: false },
+    }
+  );
+
+  return noiseEmails.length;
 };

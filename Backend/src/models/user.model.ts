@@ -58,6 +58,7 @@ const userSchema = new mongoose.Schema<IUser>({
     lastProcessedAt: { type: Date, default: null },
     lastProcessedCount: { type: Number, default: 0 },
   },
+
 });
 
 export const User = mongoose.model<IUser>("User", userSchema);

@@ -48,3 +48,20 @@ export const getSingleEmail = async (id: string) => {
   const res = await API.get(`/email/${id}`);
   return res.data;
 };
+export const markImportant = async (id: string) => {
+  await API.post(`/email/${id}/mark-important`);
+};
+
+export const archiveEmail = async (id: string) => {
+  await API.post(`/email/${id}/archive`);
+};
+export const unmarkImportant = async (id: string) => {
+  await API.post(`/email/${id}/unmark-important`);
+};
+
+export const unarchiveEmail = async (id: string) => {
+  await API.post(`/email/${id}/unarchive`);
+};
+export const archiveall = async () => {
+  await API.post("/email/archiveall");
+};

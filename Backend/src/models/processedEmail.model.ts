@@ -14,6 +14,9 @@ interface ProcessedEmail extends mongoose.Document {
   type: "primary" | "update" | "alert" | "promotion";
   action: "needs_action" | "waiting" | "info" | "noise";
   confidence: number;
+  isArchived: boolean;
+  isImportant: boolean;
+  originalLabels: string[];
 
   processedAt: Date;
 }
@@ -57,7 +60,17 @@ const processedEmailSchema = new mongoose.Schema<ProcessedEmail>({
     type: Number,
     default: 0.7,
   },
-
+  isArchived: {
+    type: Boolean,
+  },
+  isImportant: {
+    type: Boolean,
+  },
+  originalLabels:{
+    type: [String],
+     default: []
+  }
+,
   processedAt: {
     type: Date,
     default: Date.now,
@@ -68,8 +81,9 @@ const processedEmailSchema = new mongoose.Schema<ProcessedEmail>({
 processedEmailSchema.index({ userId: 1, messageId: 1 }, { unique: true });
 processedEmailSchema.index({ userId: 1, action: 1 });
 processedEmailSchema.index({ userId: 1, type: 1 });
+processedEmailSchema.index({ isArchived: 1, isImportant: 1 });
 
 export const ProcessedEmail = mongoose.model(
   "ProcessedEmail",
-  processedEmailSchema
+  processedEmailSchema,
 );

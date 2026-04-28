@@ -9,7 +9,20 @@ export const useEmailList = () => {
   const fetchEmails = async (params: any = {}) => {
     try {
       setLoading(true);
-      const data = await getEmailList(params);
+
+      const query: any = JSON.parse(JSON.stringify(params));
+
+      if (params.action === "archived") {
+        query.isArchived = true;
+        delete query.action;
+      }
+
+      if (params.action === "important") {
+        query.isImportant = true;
+        delete query.action;
+      }
+
+      const data = await getEmailList(query);
 
       setEmails(data.data);
       setPagination(data.pagination);
@@ -23,5 +36,6 @@ export const useEmailList = () => {
     pagination,
     loading,
     fetchEmails,
+    setEmails,
   };
 };

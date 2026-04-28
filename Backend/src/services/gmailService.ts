@@ -7,6 +7,7 @@ import { decrypt } from "../utils/crypto";
 import mongoose from "mongoose";
 import { createReportFile, appendToReport } from "../utils/reportLogger";
 import { Email } from "../types/email";
+import { ProcessedEmail } from "../models/processedEmail.model";
 
 export async function getGmailClient(userId: mongoose.Schema.Types.ObjectId) {
   const user = await User.findById(userId);
@@ -158,6 +159,10 @@ export async function starEmail(
       addLabelIds: ["STARRED"],
     },
   });
+  await ProcessedEmail.updateOne(
+    { userId, messageId },
+    { $set: { isImportant: true } },
+  );
 }
 
 // ==============================
@@ -168,14 +173,27 @@ export async function archiveEmail(
   messageId: string,
 ) {
   const gmail = await getGmailClient(userId);
+  const message = await gmail.users.messages.get({
+    userId: "me",
+    id: messageId,
+  });
+
+  const currentLabels = message.data.labelIds || [];
+
+  await ProcessedEmail.updateOne(
+    { userId, messageId },
+    { $set: { isArchived: true, originalLabels: currentLabels } },
+    { upsert: true },
+  );
 
   await gmail.users.messages.modify({
     userId: "me",
     id: messageId,
     requestBody: {
-      removeLabelIds: ["INBOX"],
+      removeLabelIds: ["INBOX", "CATEGORY_PERSONAL", "CATEGORY_UPDATES"],
     },
   });
+  await unStarEmail(userId,messageId)
 }
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
@@ -216,7 +234,7 @@ export async function getEmailsByTimeRange(
 
     response = res.data;
     const messages = response.messages || [];
-     console.log("📄 PAGE FETCHED", {
+    console.log("📄 PAGE FETCHED", {
       traceId,
       count: messages.length,
       nextPageToken,
@@ -224,13 +242,11 @@ export async function getEmailsByTimeRange(
 
     allMessages.push(...messages);
     nextPageToken = response.nextPageToken || undefined;
-   
   } while (nextPageToken);
   console.log("📬 TOTAL IDS", {
     traceId,
     totalMessages: allMessages.length,
   });
-
 
   // ==============================
   // ⚡ FETCH FULL EMAILS (BATCHED)
@@ -266,7 +282,7 @@ export async function getEmailsByTimeRange(
         }
       }),
     );
- 
+
     // ✅ filter failed ones
     const validEmails: Email[] = results.filter(
       (email): email is Email => email !== null,
@@ -301,7 +317,7 @@ export async function getTotalEmailCount(
 
 export async function getFullEmail(
   userId: mongoose.Schema.Types.ObjectId,
-  messageId: string
+  messageId: string,
 ) {
   const gmail = await getGmailClient(userId);
 
@@ -313,11 +329,9 @@ export async function getFullEmail(
   const payload = res.data.payload;
   const headers = payload?.headers || [];
 
-  const subject =
-    headers.find((h: any) => h.name === "Subject")?.value || "";
+  const subject = headers.find((h: any) => h.name === "Subject")?.value || "";
 
-  const from =
-    headers.find((h: any) => h.name === "From")?.value || "";
+  const from = headers.find((h: any) => h.name === "From")?.value || "";
 
   // 🔥 extract body
   const body = extractBody(payload);
@@ -333,26 +347,64 @@ export async function getFullEmail(
 function extractBody(payload: any): string {
   if (!payload) return "";
 
-  // ✅ direct body
-  if (payload.body?.data) {
-    return Buffer.from(payload.body.data, "base64").toString("utf-8");
-  }
+  const getBody = (part: any): string | null => {
+    if (part.body?.data) {
+      return Buffer.from(part.body.data, "base64").toString("utf-8");
+    }
 
-  // ✅ multipart
-  if (payload.parts) {
-    for (const part of payload.parts) {
-      if (part.mimeType === "text/plain" && part.body?.data) {
-        return Buffer.from(part.body.data, "base64").toString("utf-8");
+    if (part.parts) {
+      for (const p of part.parts) {
+        const result = getBody(p);
+        if (result) return result;
       }
     }
 
-    // fallback → html
-    for (const part of payload.parts) {
-      if (part.mimeType === "text/html" && part.body?.data) {
-        return Buffer.from(part.body.data, "base64").toString("utf-8");
-      }
-    }
+    return null;
+  };
+
+  return getBody(payload) || "";
+}
+
+export async function unArchiveEmail(
+  userId: mongoose.Schema.Types.ObjectId,
+  messageId: string,
+) {
+  const gmail = await getGmailClient(userId);
+
+  const email = await ProcessedEmail.findOne({ userId, messageId });
+  if (!email) {
+    throw new Error("No archived record found for this message");
   }
 
-  return "";
+  const labelsToRestore = [...new Set(email.originalLabels || ["INBOX"])];
+
+  await gmail.users.messages.modify({
+    userId: "me",
+    id: messageId,
+    requestBody: { addLabelIds: labelsToRestore },
+  });
+
+  await ProcessedEmail.updateOne(
+    { userId, messageId },
+    { $set: { isArchived: false } },
+  );
+}
+
+export async function unStarEmail(
+  userId: mongoose.Schema.Types.ObjectId,
+  messageId: string,
+) {
+  const gmail = await getGmailClient(userId);
+
+  await gmail.users.messages.modify({
+    userId: "me",
+    id: messageId,
+    requestBody: {
+      removeLabelIds: ["STARRED"],
+    },
+  });
+    await ProcessedEmail.updateOne(
+    { userId, messageId },
+    { $set: { isImportant: false } },
+  );
 }

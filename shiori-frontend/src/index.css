@@ -1,1 +1,30 @@
 @import "tailwindcss";
+
+.email-body {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* 🔥 CRITICAL FIX */
+.email-body table,
+.email-body td,
+.email-body tr {
+  max-width: 100% !important;
+  width: auto !important;
+}
+
+/* Fix images */
+.email-body img {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+/* Prevent overflow from divs */
+.email-body div {
+  max-width: 100% !important;
+}
+
+/* Word breaking */
+.email-body * {
+  word-break: break-word;
+}

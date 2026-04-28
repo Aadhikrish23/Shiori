@@ -3,18 +3,18 @@ interface Props {
   onClick: (email: any) => void;
 }
 
-const EmailRow = ({ email,onClick }: Props) => {
+const EmailRow = ({ email, onClick }: Props) => {
   return (
-    <div  onClick={() => onClick(email)} className="grid grid-cols-12 gap-4 p-4 border-b hover:bg-gray-50 transition">
-      
+    <div
+      onClick={() => onClick(email)}
+      className="grid grid-cols-12 gap-4 p-4 border-b hover:bg-gray-50 transition"
+    >
       {/* SUBJECT */}
       <div className="col-span-5">
         <p className="font-medium text-gray-900 truncate">
           {email.subject || "(No Subject)"}
         </p>
-        <p className="text-xs text-gray-500 truncate">
-          {email.from}
-        </p>
+        <p className="text-xs text-gray-500 truncate">{email.from}</p>
       </div>
 
       {/* LABEL */}
@@ -26,10 +26,15 @@ const EmailRow = ({ email,onClick }: Props) => {
 
       {/* ACTION */}
       <div className="col-span-2">
-        <span className="text-xs text-gray-600 capitalize">
-          {email.action}
-        </span>
+        <span className="text-xs text-gray-600 capitalize">{email.action}</span>
       </div>
+      {/* {email.action === "needs_action" && (
+        <span className="text-yellow-500">⭐</span>
+      )}
+
+      {email.action === "noise" && (
+        <span className="text-gray-400">Archived</span>
+      )} */}
 
       {/* CONFIDENCE */}
       <div className="col-span-2">

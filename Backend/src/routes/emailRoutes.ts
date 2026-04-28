@@ -7,7 +7,12 @@ import {
   getEmailListController,
   getEmailOverviewController,
   processBulkEmails,
-  getSingleEmailController
+  getSingleEmailController,
+  markImportantController,
+  archiveController,
+  unarchiveController,
+  unmarkImportantController,
+  archiveNoise
 } from "../controllers/emailController";
 import { cancelJob, getJobStatus } from "../controllers/jobController";
 
@@ -23,5 +28,11 @@ router.post("/process-bulk", processBulkEmails);
 router.get("/job-status", getJobStatus);
 router.post("/cancel-job", cancelJob);
 router.get("/:id", getSingleEmailController);
+router.post("/:id/mark-important", markImportantController);
+router.post("/:id/archive", archiveController);
+
+router.post("/:id/unarchive", unarchiveController);
+router.post("/:id/unmark-important", unmarkImportantController);
+router.post("/archiveall",archiveNoise);
 
 export default router;

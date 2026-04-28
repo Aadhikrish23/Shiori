@@ -2,7 +2,8 @@ import { NextFunction, Request, Response } from "express";
 import { emailQueue } from "../queue/emailQueue";
 import * as emailService from "../services/emailServices";
 import { User } from "../models/user.model";
-import { getFullEmail } from "../services/gmailService";
+import { archiveEmail, getFullEmail, getGmailClient, starEmail, unArchiveEmail, unStarEmail } from "../services/gmailService";
+import { ProcessedEmail } from "../models/processedEmail.model";
 // 🔥 PROCESS DEFAULT (cron/manual trigger)
 export const processUserEmails = async (req: any, res: Response) => {
   const userId = req.user?.id;
@@ -200,4 +201,88 @@ export const getSingleEmailController = async (req: any, res: Response) => {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch email" });
   }
+};
+export const markImportantController = async (req: any, res: Response) => {
+  const userId = req.user.id;
+  const messageId = req.params.id;
+
+  await starEmail(userId, messageId);
+
+  await ProcessedEmail.updateOne(
+    { userId, messageId },
+    {
+      $set: {
+        action: "needs_action",
+        
+      },
+    }
+  );
+
+  res.json({ success: true });
+};
+export const archiveController = async (req: any, res: Response) => {
+  const userId = req.user.id;
+  const messageId = req.params.id;
+
+  await archiveEmail(userId, messageId);
+
+  await ProcessedEmail.updateOne(
+    { userId, messageId },
+    {
+      $set: {
+        action: "noise",
+        
+      },
+    }
+  );
+
+  res.json({ success: true });
+};
+
+export const unarchiveController = async (req: any, res: Response) => {
+  const userId = req.user.id;
+  const messageId = req.params.id;
+
+  await unArchiveEmail(userId,messageId)
+
+  await ProcessedEmail.updateOne(
+    { userId, messageId },
+    {
+      $set: {
+        action: "info",
+        
+      },
+    }
+  );
+
+  res.json({ success: true });
+};
+export const unmarkImportantController = async (req: any, res: Response) => {
+  const userId = req.user.id;
+  const messageId = req.params.id;
+
+  await unStarEmail(userId,messageId);
+  
+  await ProcessedEmail.updateOne(
+    { userId, messageId },
+    {
+      $set: {
+        action: "info",
+        
+      },
+    }
+  );
+
+  res.json({ success: true });
+};
+
+export const archiveNoise = async (req:any, res:Response) => {
+  const userId = req.user.id;
+
+  const count = await emailService.archiveNoiseEmails(userId);
+
+  res.json({
+    success: true,
+    archived: count,
+  });
 };

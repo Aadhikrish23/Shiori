@@ -3,14 +3,14 @@ import { useLabels } from "../../labels/hooks/useLabels";
 interface Props {
   filters: any;
   setFilters: (f: any) => void;
+  onBulkArchive: () => void; // 🔥 add this
 }
 
-const EmailFilters = ({ filters, setFilters }: Props) => {
+const EmailFilters = ({ filters, setFilters, onBulkArchive }: Props) => {
   const { configs } = useLabels(); // 🔥 dynamic labels
 
   return (
     <div className="flex flex-wrap gap-3 mb-4">
-
       {/* LABEL FILTER */}
       <select
         className="border p-2 rounded"
@@ -41,6 +41,8 @@ const EmailFilters = ({ filters, setFilters }: Props) => {
         <option value="info">Info</option>
         <option value="waiting">Waiting</option>
         <option value="noise">Noise</option>
+        <option value="archived">Archived</option>
+        <option value="important">Important</option>
       </select>
 
       {/* TYPE */}
@@ -57,6 +59,14 @@ const EmailFilters = ({ filters, setFilters }: Props) => {
         <option value="update">Update</option>
         <option value="promotion">Promotion</option>
       </select>
+      <button
+        onClick={() => {
+          console.log("CLICKED");
+          onBulkArchive();
+        }}
+      >
+        Archive all noise emails
+      </button>
     </div>
   );
 };

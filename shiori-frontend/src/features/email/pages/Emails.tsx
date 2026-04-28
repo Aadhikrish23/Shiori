@@ -10,10 +10,10 @@ import Pagination from "../components/Pagination";
 import ProcessModal from "../components/ProcessModal";
 import { useScheduler } from "../hooks/useScheduler";
 import EmailDrawer from "../components/EmailDrawer";
-import { getSingleEmail } from "../../../services/emailService";
+import { archiveall, getSingleEmail } from "../../../services/emailService";
 
 const Emails = () => {
-  const { emails, pagination, loading, fetchEmails } = useEmailList();
+  const { emails, pagination, loading, fetchEmails,setEmails } = useEmailList();
   const { stats, fetchStats, job, fetchJobStatus, processBulk } = useEmail();
   const { nextRun, remaining, refreshNextRun, formatNextRun } =
     useScheduler(fetchStats);
@@ -406,7 +406,14 @@ const Emails = () => {
         </div>
 
         {/* FILTERS */}
-        <EmailFilters filters={filters} setFilters={setFilters} />
+       <EmailFilters
+  filters={filters}
+  setFilters={setFilters}
+  onBulkArchive={async () => {
+    await archiveall();
+    fetchEmails(filters); // 🔥 refresh list after bulk archive
+  }}
+/>
 
         {/* LIST */}
         <div className="bg-white rounded border">
@@ -443,6 +450,13 @@ const Emails = () => {
         email={selectedEmail}
         open={!!selectedEmail}
         onClose={() => setSelectedEmail(null)}
+        onUpdate={(updated) => {
+          setSelectedEmail(updated);
+
+          setEmails((prev) =>
+            prev.map((e) => (e.messageId === updated.messageId ? updated : e)),
+          );
+        }}
       />
     </Layout>
   );

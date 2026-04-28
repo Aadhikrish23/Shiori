@@ -121,6 +121,8 @@ export const getProcessedEmailsWithFilters = async (
     label?: string;
     page: number;
     limit: number;
+    isImportant:boolean;
+    isArchived:boolean
   },
 ) => {
   const query: any = { userId };
@@ -128,6 +130,12 @@ export const getProcessedEmailsWithFilters = async (
   if (filters.action) query.action = filters.action;
   if (filters.type) query.type = filters.type;
   if (filters.label) query.category = filters.label;
+  if (filters.isImportant) {
+    query.isImportant = true;
+  }
+  if (filters.isArchived) {
+    query.isArchived = true;
+  }
 
   const skip = (filters.page - 1) * filters.limit;
 
