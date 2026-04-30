@@ -4,16 +4,16 @@ import { encrypt, decrypt } from "../utils/crypto";
 
 // ✅ Check if already processed (per user)
 export const isProcessed = async (
-  userId: mongoose.Schema.Types.ObjectId,
+  userId:  mongoose.Types.ObjectId,
   messageId: string,
 ): Promise<boolean> => {
-  const exists = await ProcessedEmail.findOne({ userId, messageId });
+  const exists = await ProcessedEmail.findOne({ userId:userId as any, messageId });
   return !!exists;
 };
 
 // ✅ Mark as processed (per user)
 export const markAsProcessed = async (
-  userId: mongoose.Schema.Types.ObjectId,
+  userId:  mongoose.Types.ObjectId,
   messageId: string,
   data: {
     category: string;
@@ -27,7 +27,7 @@ export const markAsProcessed = async (
   },
 ) => {
   await ProcessedEmail.updateOne(
-    { userId, messageId },
+    { userId:userId as any, messageId },
     {
       $set: {
         // 📧 metadata
@@ -47,18 +47,18 @@ export const markAsProcessed = async (
     { upsert: true },
   );
 };
-export const getEmailStats = async (userId: mongoose.Schema.Types.ObjectId) => {
-  const totalProcessed = await ProcessedEmail.countDocuments({ userId });
+export const getEmailStats = async (userId:  mongoose.Types.ObjectId) => {
+  const totalProcessed = await ProcessedEmail.countDocuments({ userId:userId as any });
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
   const processedToday = await ProcessedEmail.countDocuments({
-    userId,
+    userId:userId as any,
     processedAt: { $gte: todayStart },
   });
 
-  const lastProcessed = await ProcessedEmail.findOne({ userId })
+  const lastProcessed = await ProcessedEmail.findOne({ userId:userId as any })
     .sort({ processedAt: -1 })
     .select("processedAt");
 
@@ -79,7 +79,7 @@ export const getEmailStats = async (userId: mongoose.Schema.Types.ObjectId) => {
 };
 
 export const getDashboardStats = async (
-  userId: mongoose.Schema.Types.ObjectId,
+  userId:  mongoose.Types.ObjectId,
 ) => {
   // 🔥 LABEL COUNTS
   const labelStats = await ProcessedEmail.aggregate([
@@ -94,14 +94,14 @@ export const getDashboardStats = async (
   ]);
 
   // 🔥 TOTAL
-  const totalProcessed = await ProcessedEmail.countDocuments({ userId });
+  const totalProcessed = await ProcessedEmail.countDocuments({ userId:userId as any });
 
   // 🔥 TODAY
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
   const processedToday = await ProcessedEmail.countDocuments({
-    userId,
+    userId:userId as any,
     processedAt: { $gte: todayStart },
   });
 
@@ -114,7 +114,7 @@ export const getDashboardStats = async (
 };
 
 export const getProcessedEmailsWithFilters = async (
-  userId: mongoose.Schema.Types.ObjectId,
+  userId:  mongoose.Types.ObjectId,
   filters: {
     action?: string;
     type?: string;
@@ -155,7 +155,7 @@ export const getProcessedEmailsWithFilters = async (
   };
 };
 export const getProcessedCount = async (
-  userId: mongoose.Schema.Types.ObjectId,
+  userId:  mongoose.Types.ObjectId,
 ) => {
-  return await ProcessedEmail.countDocuments({ userId });
+  return await ProcessedEmail.countDocuments({ userId:userId as any });
 };

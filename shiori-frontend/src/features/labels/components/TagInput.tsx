@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTagSuggestions } from "../hooks/useTagSuggestions";
+
 interface Props {
   keyword: string;
   tags: string[];
@@ -10,70 +11,110 @@ const TagInput = ({ keyword, tags, setTags }: Props) => {
   const [input, setInput] = useState("");
   const suggestions = useTagSuggestions(keyword);
 
+  const isDisabled = !keyword.trim();
+
   const addTag = (tag: string) => {
+    if (isDisabled) return;
     if (!tags.includes(tag)) {
       setTags([...tags, tag]);
     }
   };
 
   const addCustomTag = () => {
-    const tag = input.trim();
+    if (isDisabled) return;
 
-    if (!tag) return;
-    if (tags.includes(tag)) return;
+    const tag = input.trim().toLowerCase();
+    if (!tag || tags.includes(tag)) return;
 
     setTags([...tags, tag]);
     setInput("");
   };
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addCustomTag();
-    }
-  };
+
   const removeTag = (tag: string) => {
     setTags(tags.filter((t) => t !== tag));
   };
 
   return (
-    <div>
-      {/* Selected tags */}
-      <div className="flex gap-2 mb-3 flex-wrap">
-        {tags.map((tag) => (
-          <div key={tag} className="bg-blue-100 px-2 py-1 rounded flex gap-2">
-            {tag}
-            <button onClick={() => removeTag(tag)}>x</button>
-          </div>
-        ))}
-      </div>
-
-      {/* Suggestions */}
-      <div className="flex gap-2 flex-wrap">
-        {suggestions
-          .filter((tag) => !tags.includes(tag))
-          .map((tag) => (
-            <button
+    <div className="space-y-3">
+      {/* SELECTED TAGS */}
+      {tags.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {tags.map((tag) => (
+            <div
               key={tag}
-              onClick={() => addTag(tag)}
-              className="bg-gray-200 px-2 py-1 rounded hover:bg-gray-300"
+              className="
+                bg-blue-500/10 text-blue-400
+                px-2 py-1 rounded-full flex items-center gap-2 text-xs
+              "
             >
               {tag}
-            </button>
+              <button
+                onClick={() => removeTag(tag)}
+                className="hover:text-red-400"
+              >
+                ✕
+              </button>
+            </div>
           ))}
-      </div>
-      <div className="mt-3 flex gap-2">
+        </div>
+      )}
+
+      {/* EMPTY STATE MESSAGE */}
+      {isDisabled && (
+        <p className="text-xs text-[var(--muted)]">
+          Enter label name to enable tags
+        </p>
+      )}
+
+      {/* SUGGESTIONS (ONLY WHEN ENABLED) */}
+      {!isDisabled && suggestions.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {suggestions
+            .filter((tag) => !tags.includes(tag))
+            .map((tag) => (
+              <button
+                key={tag}
+                onClick={() => addTag(tag)}
+                className="
+                  bg-white/5 px-2 py-1 rounded-full text-xs
+                  hover:bg-white/10 transition
+                "
+              >
+                {tag}
+              </button>
+            ))}
+        </div>
+      )}
+
+      {/* CUSTOM INPUT */}
+      <div className="flex gap-2">
         <input
           type="text"
           placeholder="Add custom tag..."
-          className="border p-2 flex-1 rounded"
           value={input}
+          disabled={isDisabled}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={(e) => e.key === "Enter" && addCustomTag()}
+          className={`
+            flex-1 px-3 py-2 rounded-lg
+            bg-transparent border border-[var(--border)]
+            text-[var(--text)]
+            ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}
+          `}
         />
 
         <button
           onClick={addCustomTag}
-          className="bg-gray-800 text-white px-3 rounded"
+          disabled={isDisabled}
+          className={`
+            px-3 rounded-lg text-sm
+            ${
+              isDisabled
+                ? "bg-gray-700 opacity-50 cursor-not-allowed"
+                : "bg-gray-700 hover:bg-gray-600"
+            }
+            text-white
+          `}
         >
           Add
         </button>

@@ -1,24 +1,16 @@
-import { Dialog, DialogTitle, DialogContent } from "@mui/material";
 import { useState, useEffect } from "react";
 import TagInput from "./TagInput";
 import { useLabelActions } from "../hooks/useLabelActions";
+import Button from "../../../shared/ui/components/Button";
 
-interface Props {
-  open: boolean;
-  onClose: () => void;
-  initialData?: {
-    _id: string;
-    name: string;
-    tags: string[];
-  };
-}
-
-const CreateLabelModal = ({ open, onClose, initialData }: Props) => {
+const CreateLabelModal = ({ open, onClose, initialData }: any) => {
   const [keyword, setKeyword] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false); // 🔥 NEW
 
-const { addConfig, updateConfig } = useLabelActions();
-  // 🔥 Sync data when editing
+  const { configs, addConfig, updateConfig } = useLabelActions();
+
   useEffect(() => {
     if (initialData) {
       setKeyword(initialData.name);
@@ -27,49 +19,124 @@ const { addConfig, updateConfig } = useLabelActions();
       setKeyword("");
       setTags([]);
     }
+    setError("");
+    setLoading(false);
   }, [initialData, open]);
 
   const handleSave = async () => {
-    if (!keyword) return;
+    const name = keyword.trim().toLowerCase();
 
-    if (initialData) {
-      // 🔥 UPDATE MODE
-      await updateConfig(initialData._id, keyword, tags);
-    } else {
-      // 🔥 CREATE MODE
-      await addConfig(keyword, tags);
+    if (!name) {
+      setError("Label name is required");
+      return;
     }
 
-    onClose();
-    setKeyword("");
-    setTags([]);
+    const exists = configs.some(
+      (c) =>
+        c.name.toLowerCase() === name &&
+        (!initialData || c._id !== initialData._id)
+    );
+
+    if (exists) {
+      setError("Label already exists");
+      return;
+    }
+
+    try {
+      setLoading(true); // 🔥 START LOADING
+
+      if (initialData) {
+        await updateConfig(initialData._id, name, tags);
+      } else {
+        await addConfig(name, tags);
+      }
+
+      onClose(); // success → close modal
+    } catch (err: any) {
+      if (
+        err?.response?.status === 409 ||
+        err?.message?.includes("duplicate")
+      ) {
+        setError("Label already exists");
+      } else {
+        setError("Something went wrong. Try again.");
+      }
+    } finally {
+      setLoading(false); // 🔥 STOP LOADING
+    }
   };
 
-  return (
-    <Dialog open={open} onClose={onClose} fullWidth>
-      <DialogTitle>
-        {initialData ? "Edit Label" : "Create Label"}
-      </DialogTitle>
+  if (!open) return null;
 
-      <DialogContent className="space-y-4">
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+      onClick={() => !loading && onClose()} // 🔥 block close while loading
+    >
+      <div
+        className="
+        bg-[var(--card)] border border-[var(--border)]
+        p-6 rounded-2xl w-[520px]
+        shadow-2xl space-y-5
+        "
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold text-[var(--text)]">
+          {initialData ? "Edit Label" : "Create Label"}
+        </h2>
+
+        {/* INPUT */}
         <input
           type="text"
-          placeholder="Enter keyword (e.g. jobs)"
-          className="w-full border p-2 rounded"
+          placeholder="Label name (e.g. jobs)"
           value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
+          disabled={loading} // 🔥 disable
+          onChange={(e) => {
+            const value = e.target.value;
+            setKeyword(value);
+            setError("");
+
+            if (!value.trim()) {
+              setTags([]);
+            }
+          }}
+          className="
+          w-full px-4 py-2.5 rounded-lg
+          bg-transparent border border-[var(--border)]
+          text-[var(--text)]
+          focus:outline-none focus:ring-2 focus:ring-blue-500
+          disabled:opacity-50
+          "
         />
 
+        {/* ERROR */}
+        {error && <p className="text-sm text-red-500">{error}</p>}
+
+        {/* TAG INPUT */}
         <TagInput keyword={keyword} tags={tags} setTags={setTags} />
 
-        <button
-          onClick={handleSave}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-        >
-          {initialData ? "Update" : "Save"}
-        </button>
-      </DialogContent>
-    </Dialog>
+        {/* ACTIONS */}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="ghost" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+
+          <Button
+            onClick={handleSave}
+            disabled={!keyword.trim() || loading}
+            className="min-w-[120px]"
+          >
+            {loading
+              ? initialData
+                ? "Updating..."
+                : "Creating..."
+              : initialData
+              ? "Update"
+              : "Create"}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };
 

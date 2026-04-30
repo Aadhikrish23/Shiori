@@ -17,7 +17,7 @@ import mongoose from "mongoose";
 import pLimit from "p-limit";
 
 interface JobParams {
-  userId: mongoose.Schema.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
   startTime?: Date;
   endTime?: Date;
   includeProcessed?: boolean;
@@ -73,7 +73,7 @@ export const processEmailsJob = async (
       return { processedCount: 0 };
     }
 
-    const labels: ILabelConfig[] = await getAllLabels(userId.toString());
+    const labels: ILabelConfig[] = await getAllLabels(userId);
 
     if (!labels.length) {
       return { processedCount: 0 };

@@ -9,7 +9,7 @@ import { createReportFile, appendToReport } from "../utils/reportLogger";
 import { Email } from "../types/email";
 import { ProcessedEmail } from "../models/processedEmail.model";
 
-export async function getGmailClient(userId: mongoose.Schema.Types.ObjectId) {
+export async function getGmailClient(userId:  mongoose.Types.ObjectId) {
   const user = await User.findById(userId);
 
   if (!user) {
@@ -33,7 +33,7 @@ export async function getGmailClient(userId: mongoose.Schema.Types.ObjectId) {
 // ==============================
 // 📥 FETCH EMAILS
 // ==============================
-export async function getEmails(userId: mongoose.Schema.Types.ObjectId) {
+export async function getEmails(userId:  mongoose.Types.ObjectId) {
   const gmail = await getGmailClient(userId);
 
   const res = await gmail.users.messages.list({
@@ -128,7 +128,7 @@ export const getOrCreateLabel = async (
 // 🏷️ APPLY LABEL
 // ==============================
 export async function applyLabel(
-  userId: mongoose.Schema.Types.ObjectId,
+  userId:  mongoose.Types.ObjectId,
   messageId: string,
   labelId: string,
 ) {
@@ -147,7 +147,7 @@ export async function applyLabel(
 // ⭐ STAR EMAIL
 // ==============================
 export async function starEmail(
-  userId: mongoose.Schema.Types.ObjectId,
+  userId:  mongoose.Types.ObjectId,
   messageId: string,
 ) {
   const gmail = await getGmailClient(userId);
@@ -160,7 +160,7 @@ export async function starEmail(
     },
   });
   await ProcessedEmail.updateOne(
-    { userId, messageId },
+    { userId:userId as any, messageId },
     { $set: { isImportant: true } },
   );
 }
@@ -169,7 +169,7 @@ export async function starEmail(
 // 📥 ARCHIVE EMAIL
 // ==============================
 export async function archiveEmail(
-  userId: mongoose.Schema.Types.ObjectId,
+  userId:  mongoose.Types.ObjectId,
   messageId: string,
 ) {
   const gmail = await getGmailClient(userId);
@@ -181,7 +181,7 @@ export async function archiveEmail(
   const currentLabels = message.data.labelIds || [];
 
   await ProcessedEmail.updateOne(
-    { userId, messageId },
+    { userId:userId as any, messageId },
     { $set: { isArchived: true, originalLabels: currentLabels } },
     { upsert: true },
   );
@@ -199,7 +199,7 @@ export async function archiveEmail(
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 export async function getEmailsByTimeRange(
-  userId: mongoose.Schema.Types.ObjectId,
+  userId:  mongoose.Types.ObjectId,
   start: Date,
   end: Date,
   traceId: string,
@@ -302,7 +302,7 @@ export async function getEmailsByTimeRange(
 }
 
 export async function getTotalEmailCount(
-  userId: mongoose.Schema.Types.ObjectId,
+  userId:  mongoose.Types.ObjectId,
 ) {
   const gmail = await getGmailClient(userId);
 
@@ -316,7 +316,7 @@ export async function getTotalEmailCount(
 }
 
 export async function getFullEmail(
-  userId: mongoose.Schema.Types.ObjectId,
+  userId:  mongoose.Types.ObjectId,
   messageId: string,
 ) {
   const gmail = await getGmailClient(userId);
@@ -366,12 +366,12 @@ function extractBody(payload: any): string {
 }
 
 export async function unArchiveEmail(
-  userId: mongoose.Schema.Types.ObjectId,
+  userId:  mongoose.Types.ObjectId,
   messageId: string,
 ) {
   const gmail = await getGmailClient(userId);
 
-  const email = await ProcessedEmail.findOne({ userId, messageId });
+  const email = await ProcessedEmail.findOne({ userId:userId as any, messageId });
   if (!email) {
     throw new Error("No archived record found for this message");
   }
@@ -385,13 +385,13 @@ export async function unArchiveEmail(
   });
 
   await ProcessedEmail.updateOne(
-    { userId, messageId },
+    { userId:userId as any, messageId },
     { $set: { isArchived: false } },
   );
 }
 
 export async function unStarEmail(
-  userId: mongoose.Schema.Types.ObjectId,
+  userId:  mongoose.Types.ObjectId,
   messageId: string,
 ) {
   const gmail = await getGmailClient(userId);
@@ -404,7 +404,7 @@ export async function unStarEmail(
     },
   });
     await ProcessedEmail.updateOne(
-    { userId, messageId },
+    { userId:userId as any, messageId },
     { $set: { isImportant: false } },
   );
 }

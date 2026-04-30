@@ -2,10 +2,18 @@ import { NextFunction, Request, Response } from "express";
 import { emailQueue } from "../queue/emailQueue";
 import * as emailService from "../services/emailServices";
 import { User } from "../models/user.model";
-import { archiveEmail, getFullEmail, getGmailClient, starEmail, unArchiveEmail, unStarEmail } from "../services/gmailService";
+import {
+  archiveEmail,
+  getFullEmail,
+  getGmailClient,
+  starEmail,
+  unArchiveEmail,
+  unStarEmail,
+} from "../services/gmailService";
 import { ProcessedEmail } from "../models/processedEmail.model";
+import { AuthRequest } from "../types/express";
 // 🔥 PROCESS DEFAULT (cron/manual trigger)
-export const processUserEmails = async (req: any, res: Response) => {
+export const processUserEmails = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
 
   if (!userId) {
@@ -16,7 +24,7 @@ export const processUserEmails = async (req: any, res: Response) => {
 
   const job = await emailQueue.add("process-user-emails", {
     userId,
-    jobType: req.user.plan === "premium" ? "premium" : "free",
+    jobType: req.user?.plan === "premium" ? "premium" : "free",
   });
   await User.findByIdAndUpdate(userId, {
     currentJobId: job.id,
@@ -26,7 +34,7 @@ export const processUserEmails = async (req: any, res: Response) => {
 
 // 🔥 PROCESS CUSTOM RANGE
 export const processCustomRange = async (
-  req: any,
+  req: AuthRequest,
   res: Response,
   next: NextFunction,
 ) => {
@@ -56,14 +64,14 @@ export const processCustomRange = async (
       includeProcessed,
     });
 
-    const job =  await emailQueue.add(
+    const job = await emailQueue.add(
       "process-user-emails",
       {
         userId,
         startTime,
         endTime,
         includeProcessed,
-        jobType: req.user.plan === "premium" ? "premium" : "free",
+        jobType: req.user?.plan === "premium" ? "premium" : "free",
         traceId,
       },
       {
@@ -71,9 +79,9 @@ export const processCustomRange = async (
         priority: 2,
       },
     );
-     await User.findByIdAndUpdate(userId, {
-    currentJobId: job.id,
-  });
+    await User.findByIdAndUpdate(userId, {
+      currentJobId: job.id,
+    });
     res.json({
       message: "Custom processing job added",
     });
@@ -84,12 +92,16 @@ export const processCustomRange = async (
 
 // 🔥 STATS
 export const getEmailStatsController = async (
-  req: any,
+  req: AuthRequest,
   res: Response,
   next: NextFunction,
 ) => {
   try {
     const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
 
     const stats = await emailService.getStats(userId);
 
@@ -100,12 +112,16 @@ export const getEmailStatsController = async (
 };
 
 export const getDashboardController = async (
-  req: any,
+  req: AuthRequest,
   res: Response,
   next: NextFunction,
 ) => {
   try {
     const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
 
     const data = await emailService.getDashboard(userId);
 
@@ -115,13 +131,16 @@ export const getDashboardController = async (
   }
 };
 export const getEmailListController = async (
-  req: any,
+  req: AuthRequest,
   res: Response,
   next: NextFunction,
 ) => {
   try {
     const userId = req.user?.id;
-
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
     const result = await emailService.getEmailList(userId, req.query);
 
     res.json(result);
@@ -130,13 +149,16 @@ export const getEmailListController = async (
   }
 };
 export const getEmailOverviewController = async (
-  req: any,
+  req: AuthRequest,
   res: Response,
   next: NextFunction,
 ) => {
   try {
     const userId = req.user?.id;
-
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
     const data = await emailService.getEmailOverview(userId);
 
     res.json(data);
@@ -144,7 +166,7 @@ export const getEmailOverviewController = async (
     next(err);
   }
 };
-export const processBulkEmails = async (req: any, res: Response) => {
+export const processBulkEmails = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
   const { includeProcessed = false } = req.body;
 
@@ -165,7 +187,7 @@ export const processBulkEmails = async (req: any, res: Response) => {
   }
 
   // 🔥 ADD BULK JOB
- const job= await emailQueue.add(
+  const job = await emailQueue.add(
     "process-user-emails",
     {
       userId,
@@ -177,7 +199,7 @@ export const processBulkEmails = async (req: any, res: Response) => {
       priority: 5, // 🔥 LOW priority
     },
   );
- await User.findByIdAndUpdate(userId, {
+  await User.findByIdAndUpdate(userId, {
     currentJobId: job.id,
   });
   res.json({
@@ -185,11 +207,15 @@ export const processBulkEmails = async (req: any, res: Response) => {
   });
 };
 
-export const getSingleEmailController = async (req: any, res: Response) => {
+export const getSingleEmailController = async (
+  req: AuthRequest,
+  res: Response,
+) => {
   try {
     const userId = req.user?.id;
-    const messageId = req.params.id;
-
+    const messageId = Array.isArray(req.params.id)
+      ? req.params.id[0]
+      : req.params.id;
     if (!userId || !messageId) {
       return res.status(400).json({ message: "Invalid request" });
     }
@@ -202,83 +228,108 @@ export const getSingleEmailController = async (req: any, res: Response) => {
     res.status(500).json({ message: "Failed to fetch email" });
   }
 };
-export const markImportantController = async (req: any, res: Response) => {
-  const userId = req.user.id;
-  const messageId = req.params.id;
-
+export const markImportantController = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  const userId = req.user?.id;
+  const messageId = Array.isArray(req.params.id)
+    ? req.params.id[0]
+    : req.params.id;
+  if (!userId) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
   await starEmail(userId, messageId);
 
   await ProcessedEmail.updateOne(
-    { userId, messageId },
+    { userId: userId as any, messageId },
     {
       $set: {
         action: "needs_action",
-        
       },
-    }
+    },
   );
 
   res.json({ success: true });
 };
-export const archiveController = async (req: any, res: Response) => {
-  const userId = req.user.id;
-  const messageId = req.params.id;
-
+export const archiveController = async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
+  const messageId = Array.isArray(req.params.id)
+    ? req.params.id[0]
+    : req.params.id;
+  if (!userId) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
   await archiveEmail(userId, messageId);
 
   await ProcessedEmail.updateOne(
-    { userId, messageId },
+    { userId: userId as any, messageId },
     {
       $set: {
         action: "noise",
-        
       },
-    }
+    },
   );
 
   res.json({ success: true });
 };
 
-export const unarchiveController = async (req: any, res: Response) => {
-  const userId = req.user.id;
-  const messageId = req.params.id;
-
-  await unArchiveEmail(userId,messageId)
+export const unarchiveController = async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
+  const messageId = Array.isArray(req.params.id)
+    ? req.params.id[0]
+    : req.params.id;
+  if (!userId) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  await unArchiveEmail(userId, messageId);
 
   await ProcessedEmail.updateOne(
-    { userId, messageId },
+    { userId: userId as any, messageId },
     {
       $set: {
         action: "info",
-        
       },
-    }
+    },
   );
 
   res.json({ success: true });
 };
-export const unmarkImportantController = async (req: any, res: Response) => {
-  const userId = req.user.id;
-  const messageId = req.params.id;
+export const unmarkImportantController = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  const userId = req.user?.id;
+  const messageId = Array.isArray(req.params.id)
+    ? req.params.id[0]
+    : req.params.id;
+  if (!userId) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  await unStarEmail(userId, messageId);
 
-  await unStarEmail(userId,messageId);
-  
   await ProcessedEmail.updateOne(
-    { userId, messageId },
+    { userId: userId as any, messageId },
     {
       $set: {
         action: "info",
-        
       },
-    }
+    },
   );
 
   res.json({ success: true });
 };
 
-export const archiveNoise = async (req:any, res:Response) => {
-  const userId = req.user.id;
-
+export const archiveNoise = async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
   const count = await emailService.archiveNoiseEmails(userId);
 
   res.json({

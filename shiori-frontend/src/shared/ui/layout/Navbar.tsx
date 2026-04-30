@@ -3,7 +3,7 @@ const Navbar = () => {
   const { user, logout } = useAuth();
 
   return (
-    <div className="h-16 bg-white shadow flex items-center justify-between px-6">
+    <div className="h-16 flex items-center justify-between px-6 border-b bg-[var(--card)] border-[var(--border)]">
       <h2 className="text-lg font-semibold">Welcome 👋</h2>
 
       <div className="flex items-center gap-4">

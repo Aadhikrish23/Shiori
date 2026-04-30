@@ -166,7 +166,7 @@ export const startScheduler = () => {
         await emailQueue.add(
           "process-user-emails",
           {
-            userId: user._id.toString(),
+            userId: user._id,
             startTime: lastRun,
             endTime: now,
             jobType:

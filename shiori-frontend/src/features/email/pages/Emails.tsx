@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { useEmailList } from "../hooks/useEmailList";
 import { useEmail } from "../hooks/useEmail";
 import { useSchedule } from "../hooks/useSchedule";
+import Button from "../../../shared/ui/components/Button";
+import Card from "../../../shared/ui/components/Card";
 
 import EmailRow from "../components/EmailRow";
 import EmailFilters from "../components/EmailFilters";
@@ -13,7 +15,8 @@ import EmailDrawer from "../components/EmailDrawer";
 import { archiveall, getSingleEmail } from "../../../services/emailService";
 
 const Emails = () => {
-  const { emails, pagination, loading, fetchEmails,setEmails } = useEmailList();
+  const { emails, pagination, loading, fetchEmails, setEmails } =
+    useEmailList();
   const { stats, fetchStats, job, fetchJobStatus, processBulk } = useEmail();
   const { nextRun, remaining, refreshNextRun, formatNextRun } =
     useScheduler(fetchStats);
@@ -179,29 +182,18 @@ const Emails = () => {
         {/* HEADER */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold">Emails</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-[var(--text)]">Emails</h1>
+            <p className="text-sm text-[var(--muted)]">
               AI-powered email classification
             </p>
           </div>
 
           <div className="flex gap-3">
-            <button
-              onClick={() => setOpenModal(true)}
-              className="px-4 py-2 rounded bg-blue-600 text-white"
-            >
-              Custom Process
-            </button>
+            <Button onClick={() => setOpenModal(true)}>Custom Process</Button>
 
-            <button
-              onClick={async () => {
-                const ok = await processBulk();
-                if (ok) alert("Bulk started 🚀");
-              }}
-              className="px-4 py-2 rounded bg-purple-600 text-white"
-            >
+            <Button variant="secondary" onClick={processBulk}>
               Bulk Process
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -230,7 +222,7 @@ const Emails = () => {
         )} */}
 
         {/* 🔥 AUTOMATION */}
-        <div className="bg-white p-5 rounded-xl border space-y-4">
+        <div className="bg-[var(--card)] border border-[var(--border)] p-5 rounded-xl space-y-4">
           <h2 className="font-semibold text-lg">Automation</h2>
 
           <div className="flex items-center gap-2">
@@ -242,22 +234,22 @@ const Emails = () => {
             <span>Enable automation</span>
           </div>
           <div
-            className={`p-5 rounded-xl border ${
+            className={`p-5 rounded-xl border${
               enabled
-                ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100"
-                : "bg-gray-50 border-gray-200"
+                ? "bg-blue-500/10 border border-blue-500/20"
+                : "bg-[var(--card)] border-[var(--border)]"
             }`}
           >
             {/* HEADER */}
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-xs text-gray-500">Next Run</p>
+                <p className="text-xs text-[var(--muted)]">Next Run</p>
                 {!enabled ? (
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm  text-[var(--muted)]">
                     Automation is disabled
                   </p>
                 ) : (
-                  <p className="text-lg font-semibold text-gray-900">
+                  <p className="text-lg font-semibold text-[var(--text)]">
                     {formatNextRun(nextRun)}
                   </p>
                 )}
@@ -267,7 +259,7 @@ const Emails = () => {
               <div>
                 <div>
                   {!enabled ? (
-                    <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-500">
+                    <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-[var(--muted)]">
                       Disabled
                     </span>
                   ) : job?.status === "active" ? (
@@ -275,7 +267,7 @@ const Emails = () => {
                       Running
                     </span>
                   ) : (
-                    <span className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600">
+                    <span className="text-xs px-3 py-1 rounded-full bg-gray-500/10 text-gray-300">
                       Idle
                     </span>
                   )}
@@ -285,9 +277,9 @@ const Emails = () => {
 
             {/* COUNTDOWN */}
             <div className="mt-4">
-              <p className="text-xs text-gray-500">Starts in</p>
+              <p className="text-xs text-[var(--muted)]">Starts in</p>
               {!enabled ? (
-                <p className="text-sm text-gray-400">—</p>
+                <p className="text-sm  text-[var(--muted)]">—</p>
               ) : (
                 <p className="text-2xl font-bold text-blue-600">
                   {remaining || "—"}
@@ -313,7 +305,7 @@ const Emails = () => {
               <button
                 onClick={() => setMode("interval")}
                 className={`px-3 py-1 rounded ${
-                  mode === "interval" ? "bg-blue-600 text-white" : "bg-gray-200"
+                  mode === "interval" ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-200 hover:bg-gray-600"
                 }`}
               >
                 Interval
@@ -322,7 +314,7 @@ const Emails = () => {
               <button
                 onClick={() => setMode("daily")}
                 className={`px-3 py-1 rounded ${
-                  mode === "daily" ? "bg-blue-600 text-white" : "bg-gray-200"
+                  mode === "daily" ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-200 hover:bg-gray-600"
                 }`}
               >
                 Daily
@@ -372,7 +364,7 @@ const Emails = () => {
                   type="time"
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
-                  className="border p-2 rounded"
+                  className="border border-[var(--border)] bg-transparent text-[var(--text)] p-2 rounded"
                 />
               </div>
             )}
@@ -381,46 +373,46 @@ const Emails = () => {
 
         {/* 🔥 STATS */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded border">
-            <p className="text-xs text-gray-500">Total</p>
-            <p className="text-xl font-semibold">
+          <Card>
+            <p className="text-xs text-[var(--muted)]">Total</p>
+            <p className="text-2xl font-semibold text-[var(--text)]">
               {stats?.totalProcessed || 0}
             </p>
-          </div>
+          </Card>
 
-          <div className="bg-white p-4 rounded border">
-            <p className="text-xs text-gray-500">Today</p>
-            <p className="text-xl font-semibold">
+          <Card>
+            <p className="text-xs text-[var(--muted)]">Today</p>
+            <p className="text-2xl font-semibold text-[var(--text)]">
               {stats?.processedToday || 0}
             </p>
-          </div>
+          </Card>
 
-          <div className="bg-white p-4 rounded border">
-            <p className="text-xs text-gray-500">Last Run</p>
-            <p className="text-sm">
-              {stats?.lastManualRunAt
-                ? new Date(stats.lastManualRunAt).toLocaleString()
+          <Card>
+            <p className="text-xs text-[var(--muted)]">Last Processed</p>
+            <p className="text-2xl font-semibold text-[var(--text)]">
+              {stats?.lastProcessedAt
+                ? new Date(stats.lastProcessedAt).toLocaleString()
                 : "Never"}
             </p>
-          </div>
+          </Card>
         </div>
 
         {/* FILTERS */}
-       <EmailFilters
-  filters={filters}
-  setFilters={setFilters}
-  onBulkArchive={async () => {
-    await archiveall();
-    fetchEmails(filters); // 🔥 refresh list after bulk archive
-  }}
-/>
+        <EmailFilters
+          filters={filters}
+          setFilters={setFilters}
+          onBulkArchive={async () => {
+            await archiveall();
+            fetchEmails(filters); // 🔥 refresh list after bulk archive
+          }}
+        />
 
         {/* LIST */}
-        <div className="bg-white rounded border">
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl">
           {loading ? (
-            <p className="p-6 text-gray-500">Loading...</p>
+            <p className="p-6 text-[var(--muted)]">Loading...</p>
           ) : emails.length === 0 ? (
-            <p className="p-6 text-gray-500">No emails found</p>
+            <p className="p-6 text-[var(--muted)]">No emails found</p>
           ) : (
             emails.map((email) => (
               <EmailRow

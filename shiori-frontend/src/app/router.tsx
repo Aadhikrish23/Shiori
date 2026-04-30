@@ -14,6 +14,7 @@ const AppRouter = () => {
     <BrowserRouter>
       <Routes>
         <Route path="/auth/login" element={<Login />} />
+        <Route path="/" element={<Login />} />
 
         <Route
           path="/dashboard"

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useEmail } from "../hooks/useEmail";
 import * as emailService from "../../../services/emailService";
+import Button from "../../../shared/ui/components/Button";
+import { motion } from "framer-motion";
 
 const ProcessModal = ({ open, onClose, onComplete }: any) => {
   const { processEmails, job, fetchJobStatus } = useEmail();
@@ -53,28 +55,28 @@ const ProcessModal = ({ open, onClose, onComplete }: any) => {
       setCompleted(false);
     }
   };
-const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split("T")[0];
   // ❗ AFTER hooks — safe
   if (!open) return null;
 
   return (
     <div
-      className="fixed inset-0 bg-black/30 flex items-center justify-center"
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center"
       onClick={() => {
         if (canClose) onClose();
       }}
     >
       <div
-        className="bg-white p-6 rounded-xl w-[500px] space-y-4 relative"
+        className="bg-[var(--card)] border border-[var(--border)] p-6 rounded-2xl w-[500px] shadow-xl space-y-4 relative"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-xl font-semibold">Process Emails</h2> 
+        <h2 className="text-xl font-semibold">Process Emails</h2>
         <button
           onClick={() => canClose && onClose()}
           disabled={!canClose}
-          className={`absolute top-3 right-3 text-gray-500 text-lg ${
-            !canClose ? "opacity-40 cursor-not-allowed" : "hover:text-black"
-          }`}
+          className={`absolute top-3 right-3 text-[var(--muted)] text-lg
+    ${!canClose ? "opacity-40 cursor-not-allowed" : "hover:text-[var(--text)]"}
+  `}
         >
           ✕
         </button>
@@ -86,23 +88,22 @@ const today = new Date().toISOString().split('T')[0];
               <input
                 type="date"
                 value={startDate}
-                max={endDate?endDate:today}
-               
+                max={endDate ? endDate : today}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="border p-2 rounded w-full"
+                className="w-full px-3 py-2 rounded-lg bg-transparent border border-[var(--border)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
 
               <input
                 type="date"
                 value={endDate}
                 min={startDate}
-                 max={today}
+                max={today}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="border p-2 rounded w-full"
+                className="w-full px-3 py-2 rounded-lg bg-transparent border border-[var(--border)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
-            <label className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-[var(--text)]">
               <input
                 type="checkbox"
                 checked={includeProcessed}
@@ -111,12 +112,7 @@ const today = new Date().toISOString().split('T')[0];
               Reprocess already processed emails
             </label>
 
-            <button
-              onClick={handleRun}
-              className="bg-blue-600 text-white px-4 py-2 rounded"
-            >
-              Run Processing
-            </button>
+            <Button onClick={handleRun}>Run Processing</Button>
           </>
         )}
 
@@ -125,23 +121,22 @@ const today = new Date().toISOString().split('T')[0];
           <div className="space-y-3">
             <p className="font-medium">Processing emails...</p>
 
-            <div className="h-2 bg-gray-200 rounded">
+            <div className="h-2 bg-gray-700 rounded-full">
               <div
-                className="h-2 bg-blue-600 transition-all duration-300"
+                className="h-2 bg-blue-500 rounded-full transition-all"
                 style={{ width: `${job?.progress || 0}%` }}
               />
             </div>
 
-            <p className="text-sm text-gray-500">
-              {job?.progress || 0}% completed
-            </p>
-
-            <button
-              onClick={() => emailService.cancelJob()}
-              className="bg-red-500 text-white px-3 py-1 rounded"
-            >
+            <motion.div
+              className="h-2 bg-blue-500 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${job?.progress || 0}}%` }}
+              transition={{ ease: "easeOut", duration: 0.4 }}
+            />
+            <Button variant="danger" onClick={() => emailService.cancelJob()}>
               Cancel
-            </button>
+            </Button>
           </div>
         )}
 

@@ -1,10 +1,14 @@
 import { Request, Response } from "express";
 import { emailQueue } from "../queue/emailQueue";
 import { User } from "../models/user.model";
+import { AuthRequest } from "../types/express";
 
-export const getJobStatus = async (req: any, res: Response) => {
-  const userId = req.user.id;
-
+export const getJobStatus = async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
+if (!userId) {
+  res.status(401).json({ message: "Unauthorized" });
+  return;
+}
   const user = await User.findById(userId);
 
   if (!user?.currentJobId) {
@@ -29,8 +33,12 @@ export const getJobStatus = async (req: any, res: Response) => {
     progress: job.progress ?? 0, // 🔥 IMPORTANT
   });
 };
-export const cancelJob = async (req: any, res: Response) => {
-  const userId = req.user.id;
+export const cancelJob = async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) {
+  res.status(401).json({ message: "Unauthorized" });
+  return;
+}
 
   const user = await User.findById(userId);
 

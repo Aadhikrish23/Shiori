@@ -9,18 +9,18 @@ import { decrypt } from "../utils/crypto";
 import { ProcessedEmail } from "../models/processedEmail.model";
 
 
-export const getStats = async (userId: mongoose.Schema.Types.ObjectId) => {
+export const getStats = async (userId:mongoose.Types.ObjectId ) => {
   return await getEmailStats(userId);
 };
 
-export const getDashboard = async (userId:  mongoose.Schema.Types.ObjectId) => {
+export const getDashboard = async (userId:mongoose.Types.ObjectId  ) => {
   return await getDashboardStats(userId);
 };
 
 
 
 export const getEmailList = async (
-  userId: mongoose.Schema.Types.ObjectId,
+  userId: mongoose.Types.ObjectId,
   query: any
 ) => {
   const page = Math.max(parseInt(query.page) || 1, 1);
@@ -59,7 +59,7 @@ export const getEmailList = async (
 };
 
 export const getEmailOverview = async (
-  userId: mongoose.Schema.Types.ObjectId
+  userId: mongoose.Types.ObjectId
 ) => {
   const [processed, total] = await Promise.all([
     getProcessedCount(userId),
@@ -74,9 +74,9 @@ export const getEmailOverview = async (
     totalUnprocessed: unprocessed,
   };
 };
-export const archiveNoiseEmails = async (userId: mongoose.Schema.Types.ObjectId) => {
+export const archiveNoiseEmails = async (userId:mongoose.Types.ObjectId ) => {
   const noiseEmails = await ProcessedEmail.find({
-    userId,
+    userId:userId as any,
     action: "noise",
     isArchived: { $ne: true },
   });
@@ -87,7 +87,7 @@ export const archiveNoiseEmails = async (userId: mongoose.Schema.Types.ObjectId)
 
   await ProcessedEmail.updateMany(
     {
-      userId,
+      userId:userId as any,
       action: "noise",
     },
     {

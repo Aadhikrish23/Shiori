@@ -16,9 +16,13 @@ export const useLabelActions = () => {
   };
 
   const addConfig = async (name: string, tags: string[]) => {
+  try {
     const newLabel = await labelService.createLabel({ name, tags });
     addConfigLocal(newLabel);
-  };
+  } catch (err) {
+    throw err;
+  }
+};
 
   const deleteConfig = async (id: string) => {
     await labelService.deleteLabel(id);
@@ -26,13 +30,17 @@ export const useLabelActions = () => {
   };
 
   const updateConfig = async (
-    id: string,
-    name: string,
-    tags: string[]
-  ) => {
+  id: string,
+  name: string,
+  tags: string[]
+) => {
+  try {
     const updated = await labelService.updateLabel(id, { name, tags });
     updateConfigLocal(updated);
-  };
+  } catch (err) {
+    throw err;
+  }
+};
 
   return {
     configs,

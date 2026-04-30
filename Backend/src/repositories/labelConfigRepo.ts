@@ -1,16 +1,17 @@
+import mongoose from "mongoose";
 import { LabelConfig, ILabelConfig } from "../models/labelConfig.model";
 import { TagLibrary } from "../models/tagLibrary.model";
 
 // 🔹 Get all labels (USER SCOPED)
 export const getAllLabels = async (
-  userId: string
+  userId: mongoose.Types.ObjectId
 ): Promise<ILabelConfig[]> => {
   return await LabelConfig.find({ userId });
 };
 
 // 🔹 Create label
 export const createLabel = async (
-  userId: string,
+   userId: mongoose.Types.ObjectId,
   name: string,
   tags: string[],
   description: string
@@ -29,7 +30,7 @@ export const createLabel = async (
 
 // 🔹 Update label
 export const updateLabel = async (
-  userId: string,
+   userId: mongoose.Types.ObjectId,
   id: string,
   name: string,
   tags: string[],
@@ -53,7 +54,7 @@ export const updateLabel = async (
 };
 
 // 🔹 Delete label
-export const deleteLabel = async (userId: string, id: string) => {
+export const deleteLabel = async ( userId: mongoose.Types.ObjectId, id: string) => {
   return await LabelConfig.findOneAndDelete({ _id: id, userId });
 };
 
