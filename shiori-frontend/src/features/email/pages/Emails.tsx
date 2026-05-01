@@ -14,6 +14,7 @@ import { useScheduler } from "../hooks/useScheduler";
 import EmailDrawer from "../components/EmailDrawer";
 import { archiveall, getSingleEmail } from "../../../services/emailService";
 import SectionHeader from "../../../shared/ui/components/SectionHeader";
+import Scheduler from "../components/Scheduler";
 
 const Emails = () => {
   const { emails, pagination, loading, fetchEmails, setEmails } =
@@ -138,10 +139,13 @@ const Emails = () => {
           payload.intervalMinutes = unit === "hours" ? value * 60 : value;
         }
 
-        if (mode === "daily") {
-          payload.dailyInterval = dailyInterval;
-          payload.dailyTime = time;
-        }
+       if (mode === "daily") {
+  payload.dailyInterval = dailyInterval;
+  payload.dailyTime = time;
+
+  // 🔥 IMPORTANT: also send intervalMinutes
+  payload.intervalMinutes = dailyInterval * 24 * 60;
+}
 
         await saveSchedule(payload);
 
@@ -298,79 +302,19 @@ const Emails = () => {
               !enabled ? "opacity-50 pointer-events-none" : ""
             }`}
           >
-            {/* MODE */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setMode("interval")}
-                className={`px-3 py-1 rounded ${
-                  mode === "interval"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-700 text-gray-200 hover:bg-gray-600"
-                }`}
-              >
-                Interval
-              </button>
-
-              <button
-                onClick={() => setMode("daily")}
-                className={`px-3 py-1 rounded ${
-                  mode === "daily"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-700 text-gray-200 hover:bg-gray-600"
-                }`}
-              >
-                Daily
-              </button>
-            </div>
-
-            {/* INTERVAL */}
-            {mode === "interval" && (
-              <div className="flex gap-2 items-center">
-                <span>Every</span>
-
-                <input
-                  type="number"
-                  value={value}
-                  onChange={(e) => setValue(Number(e.target.value))}
-                  className="border p-2 rounded w-20"
-                />
-
-                <select
-                
-                  value={unit}
-                  onChange={(e) =>
-                    setUnit(e.target.value as "minutes" | "hours")
-                  }
-                  className="filter-select"
-                >
-                  <option value="minutes">Minutes</option>
-                  <option value="hours">Hours</option>
-                </select>
-              </div>
-            )}
-
-            {/* DAILY */}
-            {mode === "daily" && (
-              <div className="flex gap-3 items-center">
-                <span>Every</span>
-
-                <input
-                  type="number"
-                  value={dailyInterval}
-                  onChange={(e) => setDailyInterval(Number(e.target.value))}
-                  className="border p-2 rounded w-20"
-                />
-
-                <span>day(s)</span>
-
-                <input
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="border border-[var(--border)] bg-transparent text-[var(--text)] p-2 rounded"
-                />
-              </div>
-            )}
+            <Scheduler
+              mode={mode}
+              setMode={setMode}
+              unit={unit}
+              setUnit={setUnit}
+              value={value}
+              setValue={setValue}
+              dailyInterval={dailyInterval}
+              setDailyInterval={setDailyInterval}
+              time={time}
+              setTime={setTime}
+              
+            />
           </div>
         </div>
 

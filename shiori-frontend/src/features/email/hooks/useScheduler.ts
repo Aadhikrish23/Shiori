@@ -103,15 +103,28 @@ export const useScheduler = (fetchStats?: () => Promise<void>) => {
         return;
       }
 
-      const hours = Math.floor(diff / 3600000);
-      const mins = Math.floor((diff % 3600000) / 60000);
+      // 🔥 CALCULATION LOGIC
+    const diffSecs = Math.floor(diff / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHrs = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHrs / 24);
 
-      if (hours > 0) {
-        setRemaining(`${hours}h ${mins}m`);
-      } else {
-        const secs = Math.floor((diff % 60000) / 1000);
-        setRemaining(`${mins}m ${secs}s`);
-      }
+    if (diffDays > 0) {
+      // e.g., "2d 4h"
+      const remainingHrs = diffHrs % 24;
+      setRemaining(`${diffDays}d ${remainingHrs}h`);
+    } else if (diffHrs > 0) {
+      // e.g., "5h 30m"
+      const remainingMins = diffMins % 60;
+      setRemaining(`${diffHrs}h ${remainingMins}m`);
+    } else if (diffMins > 0) {
+      // e.g., "15m 30s"
+      const remainingSecs = diffSecs % 60;
+      setRemaining(`${diffMins}m ${remainingSecs}s`);
+    } else {
+      // e.g., "45s"
+      setRemaining(`${diffSecs}s`);
+    }
     }, 1000);
 
     return () => clearInterval(interval);

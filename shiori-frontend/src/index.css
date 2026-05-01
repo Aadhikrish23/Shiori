@@ -100,3 +100,33 @@ body {
   0% { transform: translateX(-100%) }
   100% { transform: translateX(100%) }
 }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease;
+}
+
+.react-clock {
+  background: transparent;
+  border: none;
+}
+
+.react-clock__face {
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.react-clock__mark__body {
+  background-color: var(--muted);
+}
+
+.react-clock__hand__body {
+  background-color: #3b82f6;
+}
+
+.react-clock__second-hand {
+  display: none; /* cleaner */
+}
