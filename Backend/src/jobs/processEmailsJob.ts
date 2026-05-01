@@ -15,6 +15,7 @@ import {
 } from "../repositories/processedEmailRepo";
 import mongoose from "mongoose";
 import pLimit from "p-limit";
+import { pubClient } from "../config/redis";
 
 interface JobParams {
   userId: mongoose.Types.ObjectId;
@@ -44,7 +45,7 @@ export const processEmailsJob = async (
     includeProcessed = false,
     traceId,
   }: JobParams,
-  job?: any // 👈 NEW
+  job?: any, // 👈 NEW
 ) => {
   console.log("🔥 JOB START", { traceId, userId, includeProcessed });
 
@@ -61,7 +62,7 @@ export const processEmailsJob = async (
       userId,
       startTime,
       endTime,
-      traceId
+      traceId,
     );
 
     console.log("📨 FETCH DONE", {
@@ -91,14 +92,14 @@ export const processEmailsJob = async (
     }
 
     const labelMap = new Map(
-      labels.map((l) => [l.name.trim().toLowerCase(), l])
+      labels.map((l) => [l.name.trim().toLowerCase(), l]),
     );
 
     let emailsToProcess = emails;
 
     if (!includeProcessed) {
       const processedChecks = await Promise.all(
-        emails.map((email) => isProcessed(userId, email.id))
+        emails.map((email) => isProcessed(userId, email.id)),
       );
 
       emailsToProcess = emails.filter((_, i) => !processedChecks[i]);
@@ -129,6 +130,13 @@ export const processEmailsJob = async (
       if (job) {
         const percent = Math.floor((done / total) * 100);
         await job.updateProgress(percent);
+        await pubClient.publish(
+          "job-progress",
+          JSON.stringify({
+            userId: job.data.userId.toString(),
+            progress: percent,
+          }),
+        );
       }
     };
 
@@ -190,7 +198,7 @@ export const processEmailsJob = async (
             } else if (
               aiResult.confidence >= 0.7 &&
               ["promotions", "spam", "updates"].includes(
-                matchedLabel.name.toLowerCase()
+                matchedLabel.name.toLowerCase(),
               )
             ) {
               await archiveEmail(userId, email.id);
@@ -212,8 +220,8 @@ export const processEmailsJob = async (
 
           // 🔥 UPDATE PROGRESS AFTER EACH BATCH
           await updateProgress(localCount);
-        })
-      )
+        }),
+      ),
     );
 
     console.log("📊 JOB COMPLETE", {

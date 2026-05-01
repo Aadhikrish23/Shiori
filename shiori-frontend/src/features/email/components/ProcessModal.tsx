@@ -17,28 +17,52 @@ const ProcessModal = ({ open, onClose, onComplete }: any) => {
   // =========================
   // POLLING
   // =========================
+  // useEffect(() => {
+  //   if (!running) return;
+
+  //   const interval = setInterval(async () => {
+  //     const data = await fetchJobStatus();
+
+  //     if (!data || data.status !== "active") {
+  //       clearInterval(interval);
+
+  //       setRunning(false);
+  //       setCompleted(true);
+
+  //       setTimeout(() => {
+  //         setCompleted(false);
+  //         onComplete?.(); // 🔥 trigger parent refresh
+  //         onClose();
+  //       }, 1500);
+  //     }
+  //   }, 2000);
+
+  //   return () => clearInterval(interval);
+  // }, [running]);
+
+  //===========================
+
+  //web socket
+  //==========================
+
   useEffect(() => {
-    if (!running) return;
+    if (!job) return;
 
-    const interval = setInterval(async () => {
-      const data = await fetchJobStatus();
+    if (job.status === "completed") {
+      setRunning(false);
+      setCompleted(true);
 
-      if (!data || data.status !== "active") {
-        clearInterval(interval);
+      setTimeout(() => {
+        setCompleted(false);
+        onComplete?.();
+        onClose();
+      }, 1500);
+    }
 
-        setRunning(false);
-        setCompleted(true);
-
-        setTimeout(() => {
-          setCompleted(false);
-          onComplete?.(); // 🔥 trigger parent refresh
-          onClose();
-        }, 1500);
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [running]);
+    if (job.status === "failed") {
+      setRunning(false);
+    }
+  }, [job]);
 
   // =========================
   // START PROCESS
@@ -119,21 +143,20 @@ const ProcessModal = ({ open, onClose, onComplete }: any) => {
         {/* PROGRESS */}
         {running && (
           <div className="space-y-3">
-            <p className="font-medium">Processing emails...</p>
+            <div className="flex justify-between text-sm">
+              <span className="font-medium">Processing emails...</span>
+              <span>{job?.progress || 0}%</span>
+            </div>
 
-            <div className="h-2 bg-gray-700 rounded-full">
-              <div
-                className="h-2 bg-blue-500 rounded-full transition-all"
-                style={{ width: `${job?.progress || 0}%` }}
+            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-blue-500"
+                initial={{ width: 0 }}
+                animate={{ width: `${job?.progress || 0}%` }}
+                transition={{ ease: "easeOut", duration: 0.3 }}
               />
             </div>
 
-            <motion.div
-              className="h-2 bg-blue-500 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${job?.progress || 0}}%` }}
-              transition={{ ease: "easeOut", duration: 0.4 }}
-            />
             <Button variant="danger" onClick={() => emailService.cancelJob()}>
               Cancel
             </Button>

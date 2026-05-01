@@ -71,7 +71,7 @@ export const useEmail = () => {
       }
 
       // 🔥 IMPORTANT: fetch job immediately
-      await fetchJobStatus();
+      // await fetchJobStatus();
 
       return true;
     } catch (err) {
@@ -85,7 +85,7 @@ export const useEmail = () => {
       await emailService.processBulk();
 
       // 🔥 IMPORTANT
-      await fetchJobStatus();
+      // await fetchJobStatus();
 
       return true;
     } catch (err) {

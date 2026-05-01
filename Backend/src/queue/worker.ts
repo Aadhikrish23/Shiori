@@ -2,6 +2,7 @@ import { Worker, Job } from "bullmq";
 import { redisConnection } from "./connection";
 import { processEmailsJob } from "../jobs/processEmailsJob";
 import { User } from "../models/user.model";
+import { pubClient } from "../config/redis";
 
 console.log("🔥 Workers starting...");
 
@@ -135,15 +136,32 @@ export const emailWorker = new Worker(
 // ==============================
 // 🔥 EVENTS
 // ==============================
-emailWorker.on("completed", (job) => {
-  console.log("🎉 JOB COMPLETED", {
-    jobId: job.id,
-  });
+emailWorker.on("completed", async (job) => {
+  try {
+    await pubClient.publish(
+      "job-complete",
+      JSON.stringify({
+        userId: job.data.userId.toString(),
+      }),
+    );
+    console.log("🎉 JOB COMPLETED", {
+      jobId: job.id,
+    });
+  } catch (error) {
+    console.error("❌ Completion emit failed:", error);
+  }
 });
 
-emailWorker.on("failed", (job, err) => {
-  console.error("❌ JOB FAILED EVENT", {
-    jobId: job?.id,
-    error: err.message,
-  });
+emailWorker.on("failed", async (job, err) => {
+  console.error("❌ Job failed:", err.message);
+
+  if (job?.data?.userId) {
+    await pubClient.publish(
+      "job-complete",
+      JSON.stringify({
+        userId: job.data.userId.toString(),
+        error: true,
+      }),
+    );
+  }
 });
