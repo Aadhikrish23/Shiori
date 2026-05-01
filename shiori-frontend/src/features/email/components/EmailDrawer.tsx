@@ -68,14 +68,17 @@ const EmailDrawer = ({ email, open, onClose, onUpdate }: Props) => {
     : (email.body || email.snippet || "").replace(/\n/g, "<br>");
 
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div className="fixed inset-0 z-50 ">
       {/* BACKDROP */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="flex-1 bg-black/40 backdrop-blur-sm"
+        className="
+    absolute inset-0 
+    bg-black/50 backdrop-blur-md
+    pointer-events-auto
+  "
         onClick={onClose}
       />
 
@@ -89,7 +92,14 @@ const EmailDrawer = ({ email, open, onClose, onUpdate }: Props) => {
           stiffness: 260,
           damping: 25,
         }}
-        className="w-200 bg-[var(--card)] border-l border-[var(--border)] h-full shadow-2xl p-6 overflow-y-auto sticky top-0 bg-[var(--card)] z-10 pb-3 border-b border-[var(--border)] mb-4"
+        className="
+  absolute right-0 top-0
+  h-full w-200 max-w-full
+  bg-[var(--card)]
+  border-l border-[var(--border)]
+  shadow-2xl
+  p-6 overflow-y-auto
+"
       >
         {/* HEADER */}
         <div className="flex justify-between items-start mb-5 gap-4">

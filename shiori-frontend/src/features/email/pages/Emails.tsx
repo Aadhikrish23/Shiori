@@ -13,6 +13,7 @@ import ProcessModal from "../components/ProcessModal";
 import { useScheduler } from "../hooks/useScheduler";
 import EmailDrawer from "../components/EmailDrawer";
 import { archiveall, getSingleEmail } from "../../../services/emailService";
+import SectionHeader from "../../../shared/ui/components/SectionHeader";
 
 const Emails = () => {
   const { emails, pagination, loading, fetchEmails, setEmails } =
@@ -180,22 +181,19 @@ const Emails = () => {
     <Layout>
       <div className="space-y-6">
         {/* HEADER */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--text)]">Emails</h1>
-            <p className="text-sm text-[var(--muted)]">
-              AI-powered email classification
-            </p>
-          </div>
+        <SectionHeader
+          title="Emails"
+          subtitle="AI-powered email classification"
+          right={
+            <div className="flex gap-3">
+              <Button onClick={() => setOpenModal(true)}>Custom Process</Button>
 
-          <div className="flex gap-3">
-            <Button onClick={() => setOpenModal(true)}>Custom Process</Button>
-
-            <Button variant="secondary" onClick={processBulk}>
-              Bulk Process
-            </Button>
-          </div>
-        </div>
+              <Button variant="secondary" onClick={processBulk}>
+                Bulk Process
+              </Button>
+            </div>
+          }
+        />
 
         {/* 🔥 PROGRESS
         {job?.status === "active" && (
@@ -305,7 +303,9 @@ const Emails = () => {
               <button
                 onClick={() => setMode("interval")}
                 className={`px-3 py-1 rounded ${
-                  mode === "interval" ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                  mode === "interval"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-700 text-gray-200 hover:bg-gray-600"
                 }`}
               >
                 Interval
@@ -314,7 +314,9 @@ const Emails = () => {
               <button
                 onClick={() => setMode("daily")}
                 className={`px-3 py-1 rounded ${
-                  mode === "daily" ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                  mode === "daily"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-700 text-gray-200 hover:bg-gray-600"
                 }`}
               >
                 Daily
@@ -334,11 +336,12 @@ const Emails = () => {
                 />
 
                 <select
+                
                   value={unit}
                   onChange={(e) =>
                     setUnit(e.target.value as "minutes" | "hours")
                   }
-                  className="border p-2 rounded"
+                  className="filter-select"
                 >
                   <option value="minutes">Minutes</option>
                   <option value="hours">Hours</option>
@@ -408,9 +411,20 @@ const Emails = () => {
         />
 
         {/* LIST */}
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl">
+        <div
+          className="
+  rounded-xl border border-[var(--border)]z
+  bg-[var(--card)]
+  overflow-hidden
+  shadow-sm
+"
+        >
           {loading ? (
-            <p className="p-6 text-[var(--muted)]">Loading...</p>
+            <div className="p-6 space-y-3 animate-pulse">
+              <div className="h-4 bg-[var(--border)] rounded w-1/3" />
+              <div className="h-4 bg-[var(--border)] rounded w-1/2" />
+              <div className="h-4 bg-[var(--border)] rounded w-full" />
+            </div>
           ) : emails.length === 0 ? (
             <p className="p-6 text-[var(--muted)]">No emails found</p>
           ) : (

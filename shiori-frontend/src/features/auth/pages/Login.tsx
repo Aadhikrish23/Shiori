@@ -28,7 +28,7 @@ const Login = () => {
 
       {/* ✨ CURSOR GLOW */}
       <div
-        className="pointer-events-none absolute w-[400px] h-[400px] rounded-full blur-[120px] bg-blue-500/20"
+        className="pointer-events-none absolute w-100 h-100 rounded-full blur-[120px] bg-blue-500/20"
         style={{
           left: mouse.x - 200,
           top: mouse.y - 200,

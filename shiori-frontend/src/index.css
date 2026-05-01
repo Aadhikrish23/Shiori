@@ -2,20 +2,25 @@
 
 /* LIGHT THEME */
 :root {
-  --bg: #f9fafb;
+  --bg: #f8fafc;
   --card: #ffffff;
-  --border: #e5e7eb;
-  --text: #111827;
-  --muted: #6b7280;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+
+  --accent: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.1);
 }
 
-/* DARK THEME */
 .dark {
-  --bg: #0b1220;        /* deeper background */
-  --card: #111827;      /* distinct layer */
-  --border: #1f2937;
-  --text: #e5e7eb;
-  --muted: #9ca3af;
+  --bg: #020617;
+  --card: #0f172a;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --border: #1e293b;
+
+  --accent: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.15);
 }
 
 /* APPLY */
@@ -72,4 +77,26 @@ body {
 .animate-gradient {
   background-size: 200% 200%;
   animation: gradientMove 12s ease infinite;
+}
+body {
+  background:var(--bg);
+}
+
+* {
+  transition: all 0.2s ease;
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,0.15),
+    transparent
+  );
+  animation: shimmerMove 1.4s infinite;
+}
+
+@keyframes shimmerMove {
+  0% { transform: translateX(-100%) }
+  100% { transform: translateX(100%) }
 }

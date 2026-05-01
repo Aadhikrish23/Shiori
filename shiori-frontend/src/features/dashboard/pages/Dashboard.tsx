@@ -1,6 +1,11 @@
+// File: src/features/dashboard/pages/Dashboard.tsx
+
 import Layout from "../../../shared/ui/layout/Layout";
 import { useEffect } from "react";
 import { useEmail } from "../../email/hooks/useEmail";
+import SectionHeader from "../../../shared/ui/components/SectionHeader";
+import Card from "../../../shared/ui/components/Card";
+import Skeleton from "../../../shared/ui/components/Skeleton";
 
 const Dashboard = () => {
   const { dashboard, fetchDashboard } = useEmail();
@@ -14,175 +19,93 @@ const Dashboard = () => {
   );
 
   const total = dashboard?.totalProcessed || 1;
+  const loading = !dashboard;
 
   return (
     <Layout>
-      <div className="space-y-8">
+      <div className="space-y-6">
+
         {/* HEADER */}
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--text)]">
-            Dashboard
-          </h1>
-          <p className="text-sm text-[var(--muted)]">
-            Track how your emails are being categorized
-          </p>
+        <SectionHeader
+          title="Dashboard"
+          subtitle="Overview of your email activity"
+        />
+
+        {/* STATS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {loading ? (
+            <>
+              <Skeleton className="h-24" />
+              <Skeleton className="h-24" />
+              <Skeleton className="h-24" />
+            </>
+          ) : (
+            <>
+              <Card>
+                <p className="text-sm text-[var(--muted)]">Total Emails</p>
+                <h3 className="text-2xl font-bold text-[var(--text)] mt-1">
+                  {dashboard.totalProcessed}
+                </h3>
+              </Card>
+
+              <Card>
+                <p className="text-sm text-[var(--muted)]">Processed Today</p>
+                <h3 className="text-2xl font-bold text-[var(--text)] mt-1">
+                  {dashboard.processedToday}
+                </h3>
+              </Card>
+
+              <Card>
+                <p className="text-sm text-[var(--muted)]">Active Labels</p>
+                <h3 className="text-2xl font-bold text-[var(--text)] mt-1">
+                  {dashboard.activeLabels}
+                </h3>
+              </Card>
+            </>
+          )}
         </div>
 
-        {/* 🔥 LOADING STATE */}
-        {!dashboard ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-28 rounded-xl bg-white/5 border border-[var(--border)]"
-              />
-            ))}
-          </div>
-        ) : (
-          <>
-            {/* 🔥 TOP STATS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <StatCard
-                title="Total Processed"
-                value={dashboard.totalProcessed || 0}
-                color="blue"
-              />
+        {/* LABEL INSIGHTS */}
+        <SectionHeader title="Label Insights" />
 
-              <StatCard
-                title="Processed Today"
-                value={dashboard.processedToday || 0}
-                color="green"
-              />
+        <Card>
+          {loading ? (
+            <Skeleton className="h-40" />
+          ) : labels.length === 0 ? (
+            <p className="text-sm text-[var(--muted)]">
+              No emails processed yet
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {labels.map((l: any) => {
+                const percent = (l.count / total) * 100;
 
-              <StatCard
-                title="Active Labels"
-                value={dashboard.activeLabels || 0}
-                color="purple"
-              />
-            </div>
+                return (
+                  <div key={l._id}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-[var(--text)]">
+                        {l._id}
+                      </span>
+                      <span className="text-[var(--muted)]">
+                        {l.count}
+                      </span>
+                    </div>
 
-            {/* 🔥 LABEL INSIGHTS */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-[var(--text)]">
-                  Label Insights
-                </h2>
-                <span className="text-xs text-[var(--muted)]">
-                  Sorted by usage
-                </span>
-              </div>
-
-              {labels.length === 0 ? (
-                <div className="bg-[var(--card)] border border-[var(--border)] p-6 rounded-xl text-center">
-                  <p className="text-[var(--muted)] text-sm">
-                    No emails processed yet
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {labels.map((label: any, index: number) => {
-                    const percentage = (
-                      (label.count / total) *
-                      100
-                    ).toFixed(1);
-
-                    const isTop = index === 0;
-
-                    return (
+                    <div className="h-2 bg-[var(--border)] rounded-full overflow-hidden">
                       <div
-                        key={label._id}
-                        className={`
-                        p-5 rounded-xl border transition-all cursor-pointer
-                        ${
-                          isTop
-                            ? "bg-indigo-500/10 border-indigo-500/30 shadow-md"
-                            : "bg-[var(--card)] border-[var(--border)] hover:shadow-lg hover:scale-[1.02]"
-                        }
-                      `}
-                      >
-                        {/* HEADER */}
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs uppercase text-[var(--muted)]">
-                            {label._id}
-                          </span>
-
-                          <span
-                            className={`text-xs font-semibold ${
-                              isTop
-                                ? "text-indigo-400"
-                                : "text-[var(--muted)]"
-                            }`}
-                          >
-                            {percentage}%
-                          </span>
-                        </div>
-
-                        {/* COUNT */}
-                        <p className="text-3xl font-bold text-[var(--text)] mt-3">
-                          {label.count}
-                        </p>
-
-                        <p className="text-xs text-[var(--muted)] mt-1">
-                          emails categorized
-                        </p>
-
-                        {/* PROGRESS */}
-                        <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
-                          <div
-                            className={`h-full ${
-                              isTop ? "bg-indigo-500" : "bg-blue-500"
-                            }`}
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                        className="h-full bg-blue-500 transition-all duration-500"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </>
-        )}
+          )}
+        </Card>
       </div>
     </Layout>
   );
 };
 
 export default Dashboard;
-
-/* =========================
-   🔥 STAT CARD COMPONENT
-========================= */
-const StatCard = ({
-  title,
-  value,
-  color,
-}: {
-  title: string;
-  value: number;
-  color: "blue" | "green" | "purple";
-}) => {
-  const colors = {
-    blue: "text-blue-400",
-    green: "text-green-400",
-    purple: "text-purple-400",
-  };
-
-  return (
-    <div
-      className="
-      p-6 rounded-xl border
-      bg-[var(--card)] border-[var(--border)]
-      transition hover:shadow-lg hover:scale-[1.02]
-    "
-    >
-      <p className={`text-sm font-medium ${colors[color]}`}>
-        {title}
-      </p>
-
-      <h2 className="text-3xl font-bold text-[var(--text)] mt-2">
-        {value}
-      </h2>
-    </div>
-  );
-};

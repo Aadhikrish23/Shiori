@@ -13,7 +13,7 @@ const Sidebar = () => {
   ];
 
   return (
-    <div className="w-64 min-h-full bg-[#0b1220] border-r border-[#1f2937]  text-white p-5">
+    <div className="w-64 min-h-full  backdrop-blur-xl border-r bg-[var(--card)] border-[var(--border)] p-5">
       <h1 className="text-2xl font-bold mb-8">Shiori</h1>
 
       <nav className="space-y-4">
@@ -23,8 +23,8 @@ const Sidebar = () => {
             to={item.path}
             className={`block p-2 rounded-lg ${
               location.pathname === item.path
-                ? "bg-blue-600 text-white shadow"
-                : "text-gray-400 hover:text-white hover:bg-white/5"
+                ? "bg-[var(--accent-soft)] text-[var(--text)] border border-[var(--border)]"
+                : "text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--accent-soft)]"
             }`}
           >
             {item.name}
@@ -34,9 +34,9 @@ const Sidebar = () => {
       <div className="mt-10 border-t border-gray-700 pt-4">
         <button
           onClick={toggleTheme}
-          className="w-full p-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm"
+          className="w-full p-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm text-(--muted)"
         >
-          {theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
+          {theme === "light" ? "🌙" : "☀️"}
         </button>
       </div>
     </div>
