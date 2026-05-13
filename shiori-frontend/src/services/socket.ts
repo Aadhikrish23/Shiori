@@ -3,14 +3,16 @@ import { useEmailStore } from "../store/emailStore";
 
 export const socket = io(import.meta.env.VITE_SOCKET_URL, {
   withCredentials: true,
-  transports: ["websocket"], // 🔥 force websocket (no upgrade issues)
+  transports: ["websocket"],
 });
 
-// 🔥 INIT ALL LISTENERS IN ONE PLACE
 export const initSocketListeners = () => {
-  const setJob = useEmailStore.getState().setJob;
+  socket.off("connect");
+  socket.off("connect_error");
+  socket.off("job-progress");
+  socket.off("job-complete");
+  socket.off("job-failed");
 
-  // ✅ connection logs
   socket.on("connect", () => {
     console.log("🟢 Socket connected:", socket.id);
   });
@@ -19,27 +21,33 @@ export const initSocketListeners = () => {
     console.log("❌ Socket error:", err.message);
   });
 
-  // 🔄 progress updates
   socket.on("job-progress", (data) => {
-    setJob({
-      status: "active",
-      progress: data.progress,
-    });
+    console.log("🔥 WS EVENT:", data);
+
+    useEmailStore.setState((state) => ({
+      job: {
+        ...(state.job || {}), // 🔥 important fix
+        status: "active",
+        ...data,
+      },
+    }));
   });
 
-  // ✅ completed
   socket.on("job-complete", () => {
-    setJob({
-      status: "completed",
-      progress: 100,
-    });
+    useEmailStore.setState((state) => ({
+      job: {
+        ...(state.job || {}),
+        status: "completed",
+      },
+    }));
   });
 
-  // ❌ failed
   socket.on("job-failed", () => {
-    setJob({
-      status: "failed",
-      progress: 0,
-    });
+    useEmailStore.setState((state) => ({
+      job: {
+        ...(state.job || {}),
+        status: "failed",
+      },
+    }));
   });
 };

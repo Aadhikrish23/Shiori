@@ -80,6 +80,24 @@ const ProcessModal = ({ open, onClose, onComplete }: any) => {
     }
   };
   const today = new Date().toISOString().split("T")[0];
+  
+  // 🔥 NEW PERCENT LOGIC (based on stage)
+  const percent =
+    job?.stage === "fetching"
+      ? Math.min((job.fetched || 0) * 0.2, 20)
+      : job?.stage === "processing"
+      ? 20 + ((job.processed || 0) / (job.fetched || 1)) * 80
+      : job?.status === "completed"
+      ? 100
+      : 0;
+
+  // 🔥 HANDLE COMPLETION
+  // if (job?.status === "completed") {
+  //   setTimeout(() => {
+  //     onComplete?.();
+  //     onClose();
+  //   }, 1200);
+  // }
   // ❗ AFTER hooks — safe
   if (!open) return null;
 
@@ -142,26 +160,43 @@ const ProcessModal = ({ open, onClose, onComplete }: any) => {
 
         {/* PROGRESS */}
         {running && (
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="font-medium">Processing emails...</span>
-              <span>{job?.progress || 0}%</span>
-            </div>
+        <div className="space-y-4">
+          {/* 🔥 TEXT + COUNT */}
+          <div className="flex justify-between text-sm">
+            <span className="font-medium">
+              {job?.stage === "fetching" &&
+                `Fetching emails (${job.fetched || 0})`}
 
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-blue-500"
-                initial={{ width: 0 }}
-                animate={{ width: `${job?.progress || 0}%` }}
-                transition={{ ease: "easeOut", duration: 0.3 }}
-              />
-            </div>
+              {job?.stage === "processing" &&
+                `Analyzing emails (${job.processed || 0}/${job.fetched || 0})`}
+            </span>
 
-            <Button variant="danger" onClick={() => emailService.cancelJob()}>
-              Cancel
-            </Button>
+            <span>{Math.round(percent)}%</span>
           </div>
-        )}
+
+          {/* 🔥 PROGRESS BAR */}
+          <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-blue-500"
+              initial={{ width: 0 }}
+              animate={{ width: `${percent}%` }}
+              transition={{ ease: "easeOut", duration: 0.3 }}
+            />
+          </div>
+
+          {/* 🔥 CANCEL */}
+          <Button
+            variant="danger"
+            onClick={() => {
+              // optional: hook cancel API
+              console.log("Cancel clicked");
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
+      
 
         {/* COMPLETED */}
         {completed && (

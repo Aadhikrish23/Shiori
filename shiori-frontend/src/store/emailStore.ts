@@ -12,13 +12,13 @@ interface Store {
   dashboard: any;
   loading: boolean;
 
-  job: any; // 🔥 NEW
+  job: any;
 
   setStats: (stats: Stats) => void;
   setDashboard: (data: any) => void;
   setLoading: (val: boolean) => void;
 
-  setJob: (job: any) => void; // 🔥 NEW
+  setJob: (job: any) => void;
 }
 
 export const useEmailStore = create<Store>((set) => ({
@@ -28,7 +28,11 @@ export const useEmailStore = create<Store>((set) => ({
 
   job: null,
 
-  setJob: (job) => set({ job }),
+  // 🔥 FIXED: supports functional updates
+  setJob: (job) =>
+    set((state) => ({
+      job: typeof job === "function" ? job(state.job) : job,
+    })),
 
   setStats: (stats) => set({ stats }),
   setDashboard: (data) => set({ dashboard: data }),

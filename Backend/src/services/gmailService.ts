@@ -408,3 +408,50 @@ export async function unStarEmail(
     { $set: { isImportant: false } },
   );
 }
+export async function* getEmailsStream(
+  userId: mongoose.Types.ObjectId,
+  startTime: Date,
+  endTime: Date
+) {
+  const gmail = await getGmailClient(userId);
+
+  const after = Math.floor(startTime.getTime() / 1000);
+  const before = Math.floor(endTime.getTime() / 1000);
+
+  let nextPageToken: string | undefined;
+
+  do {
+    const res = await gmail.users.messages.list({
+      userId: "me",
+      q: `after:${after} before:${before}`,
+      maxResults: 50, // 🔥 small batch
+      pageToken: nextPageToken,
+    });
+
+    const messages = res.data.messages || [];
+
+    const batch = await Promise.all(
+      messages.map(async (msg) => {
+        const full = await gmail.users.messages.get({
+          userId: "me",
+          id: msg.id!,
+        });
+
+        const headers = full.data.payload?.headers || [];
+
+        return {
+          id: msg.id!,
+          subject:
+            headers.find((h) => h.name === "Subject")?.value || "",
+          sender:
+            headers.find((h) => h.name === "From")?.value || "",
+          snippet: full.data.snippet || "",
+        };
+      })
+    );
+
+    yield batch; // 🔥 streaming happens here
+
+    nextPageToken = res.data.nextPageToken || undefined;
+  } while (nextPageToken);
+}

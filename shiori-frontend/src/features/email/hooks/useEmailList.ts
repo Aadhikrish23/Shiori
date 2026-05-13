@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { getEmailList } from "../../../services/emailService";
 
 export const useEmailList = () => {
@@ -6,11 +6,16 @@ export const useEmailList = () => {
   const [pagination, setPagination] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
+  const isFetching = useRef(false);
+
   const fetchEmails = async (params: any = {}) => {
+    if (isFetching.current) return;
+
     try {
+      isFetching.current = true;
       setLoading(true);
 
-      const query: any = JSON.parse(JSON.stringify(params));
+       const query = { ...params };
 
       if (params.action === "archived") {
         query.isArchived = true;
@@ -27,6 +32,7 @@ export const useEmailList = () => {
       setEmails(data.data);
       setPagination(data.pagination);
     } finally {
+      isFetching.current = false;
       setLoading(false);
     }
   };

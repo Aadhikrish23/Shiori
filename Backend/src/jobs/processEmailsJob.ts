@@ -16,6 +16,7 @@ import {
 import mongoose from "mongoose";
 import pLimit from "p-limit";
 import { pubClient } from "../config/redis";
+import { getEmailsStream } from "../services/gmailService";
 
 interface JobParams {
   userId: mongoose.Types.ObjectId;
@@ -45,7 +46,7 @@ export const processEmailsJob = async (
     includeProcessed = false,
     traceId,
   }: JobParams,
-  job?: any, // 👈 NEW
+  job?: any,
 ) => {
   console.log("🔥 JOB START", { traceId, userId, includeProcessed });
 
@@ -56,173 +57,163 @@ export const processEmailsJob = async (
     const startTime =
       startTimeParam || new Date(endTime.getTime() - 5 * 60 * 1000);
 
-    console.log("📡 FETCH START", { traceId, startTime, endTime });
+    console.log("📡 STREAM FETCH START", { traceId, startTime, endTime });
 
-    const emails: Email[] = await getEmailsByTimeRange(
-      userId,
-      startTime,
-      endTime,
-      traceId,
-    );
-
-    console.log("📨 FETCH DONE", {
-      traceId,
-      totalEmails: emails.length,
-    });
-
-    if (!emails.length) {
-      return { processedCount: 0 };
-    }
+    const stream = getEmailsStream(userId, startTime, endTime);
 
     const labels: ILabelConfig[] = await getAllLabels(userId);
-
-    if (!labels.length) {
-      return { processedCount: 0 };
-    }
+    if (!labels.length) return { processedCount: 0 };
 
     const gmailLabelMap = new Map<string, string>();
 
     for (const label of labels) {
       const labelName = `AI/${label.name}`;
       const labelId = await getOrCreateLabel(userId, labelName);
-
-      if (labelId) {
-        gmailLabelMap.set(labelName, labelId);
-      }
+      if (labelId) gmailLabelMap.set(labelName, labelId);
     }
 
     const labelMap = new Map(
       labels.map((l) => [l.name.trim().toLowerCase(), l]),
     );
 
-    let emailsToProcess = emails;
+    // 🔥 CONCURRENCY CONTROL (FIXED)
+    const runningTasks = new Set<Promise<void>>();
 
-    if (!includeProcessed) {
-      const processedChecks = await Promise.all(
-        emails.map((email) => isProcessed(userId, email.id)),
-      );
+    const trackTask = (task: Promise<void>) => {
+      runningTasks.add(task);
+      task.finally(() => runningTasks.delete(task));
+    };
 
-      emailsToProcess = emails.filter((_, i) => !processedChecks[i]);
-    }
-
-    if (!emailsToProcess.length) {
-      return { processedCount: 0 };
-    }
-
-    const batches = chunkArray(emailsToProcess, 12);
-
-    console.log("📦 BATCH CREATED", {
-      traceId,
-      totalBatches: batches.length,
-    });
-
-    const limit = pLimit(2); // 🔥 KEEP PARALLEL
+    let totalFetched = 0;
+    let totalProcessed = 0;
 
     // ============================
-    // 🔥 PROGRESS TRACKING
+    // 🔥 STREAM LOOP
     // ============================
-    let total = emailsToProcess.length;
-    let done = 0;
+    for await (const batch of stream) {
+      let emailsToProcess = batch;
 
-    const updateProgress = async (count: number) => {
-      done += count;
+      // 🔥 FILTER PROCESSED (unchanged logic)
+      if (!includeProcessed) {
+        const processedChecks = await Promise.all(
+          batch.map((email) => isProcessed(userId, email.id)),
+        );
+        emailsToProcess = batch.filter((_, i) => !processedChecks[i]);
+      }
 
+      if (!emailsToProcess.length) continue;
+
+      totalFetched += emailsToProcess.length;
+
+      // 🔥 EMIT FETCHING
       if (job) {
-        const percent = Math.floor((done / total) * 100);
-        await job.updateProgress(percent);
         await pubClient.publish(
           "job-progress",
           JSON.stringify({
             userId: job.data.userId.toString(),
-            progress: percent,
+            stage: "fetching",
+            fetched: totalFetched,
           }),
         );
       }
-    };
 
-    // ============================
-    // 🚀 PARALLEL PROCESSING (UNCHANGED)
-    // ============================
-    await Promise.all(
-      batches.map((batch, index) =>
-        limit(async () => {
-          console.log("🤖 AI REQUEST", {
-            traceId,
-            batchIndex: index,
-            size: batch.length,
-          });
+      const task = (async () => {
+        console.log("🤖 AI REQUEST", {
+          traceId,
+          size: emailsToProcess.length,
+        });
 
-          const aiResults = await classifyEmailsBatch({
-            emails: batch.map((email) => ({
-              id: email.id,
-              subject: email.subject,
-              sender: email.sender,
-              body: email.snippet,
-            })),
-            labels: labels.map((l) => ({
-              name: l.name,
-              tags: l.tags,
-              description: l.description,
-            })),
-          });
+        const aiResults = await classifyEmailsBatch({
+          emails: emailsToProcess.map((email) => ({
+            id: email.id,
+            subject: email.subject,
+            sender: email.sender,
+            body: email.snippet,
+          })),
+          labels: labels.map((l) => ({
+            name: l.name,
+            tags: l.tags,
+            description: l.description,
+          })),
+        });
 
-          console.log("🤖 AI RESPONSE", {
-            traceId,
-            batchIndex: index,
-            results: aiResults.length,
-          });
+        console.log("🤖 AI RESPONSE", {
+          traceId,
+          results: aiResults.length,
+        });
 
-          let localCount = 0;
+        let localCount = 0;
 
-          for (const aiResult of aiResults) {
-            const email = batch.find((e) => e.id === aiResult.id);
-            if (!email) continue;
+        for (const aiResult of aiResults) {
+          const email = emailsToProcess.find((e) => e.id === aiResult.id);
+          if (!email) continue;
 
-            const cleanLabel = normalizeLabel(aiResult.label);
-            let matchedLabel = labelMap.get(cleanLabel);
+          const cleanLabel = normalizeLabel(aiResult.label);
+          let matchedLabel = labelMap.get(cleanLabel);
 
-            if (!matchedLabel) {
-              matchedLabel =
-                labelMap.get("others") || labelMap.get("promotions");
-              if (!matchedLabel) continue;
-            }
-
-            const labelName = `AI/${matchedLabel.name}`;
-            const labelId = gmailLabelMap.get(labelName);
-            if (!labelId) continue;
-
-            await applyLabel(userId, email.id, labelId);
-
-            if (aiResult.important) {
-              await starEmail(userId, email.id);
-            } else if (
-              aiResult.confidence >= 0.7 &&
-              ["promotions", "spam", "updates"].includes(
-                matchedLabel.name.toLowerCase(),
-              )
-            ) {
-              await archiveEmail(userId, email.id);
-            }
-
-            await markAsProcessed(userId, email.id, {
-              category: matchedLabel.name,
-              type: aiResult.type || "primary",
-              action: aiResult.action || "info",
-              confidence: aiResult.confidence || 0.6,
-              subject: email.subject,
-              from: email.sender,
-              snippet: email.snippet,
-            });
-
-            processedCount++;
-            localCount++;
+          if (!matchedLabel) {
+            matchedLabel =
+              labelMap.get("others") || labelMap.get("promotions");
+            if (!matchedLabel) continue;
           }
 
-          // 🔥 UPDATE PROGRESS AFTER EACH BATCH
-          await updateProgress(localCount);
-        }),
-      ),
-    );
+          const labelName = `AI/${matchedLabel.name}`;
+          const labelId = gmailLabelMap.get(labelName);
+          if (!labelId) continue;
+
+          await applyLabel(userId, email.id, labelId);
+
+          if (aiResult.important) {
+            await starEmail(userId, email.id);
+          } else if (
+            aiResult.confidence >= 0.7 &&
+            ["promotions", "spam", "updates"].includes(
+              matchedLabel.name.toLowerCase(),
+            )
+          ) {
+            await archiveEmail(userId, email.id);
+          }
+
+          await markAsProcessed(userId, email.id, {
+            category: matchedLabel.name,
+            type: aiResult.type || "primary",
+            action: aiResult.action || "info",
+            confidence: aiResult.confidence || 0.6,
+            subject: email.subject,
+            from: email.sender,
+            snippet: email.snippet,
+          });
+
+          processedCount++;
+          localCount++;
+        }
+
+        totalProcessed += localCount;
+
+        // 🔥 EMIT PROCESSING
+        if (job) {
+          await pubClient.publish(
+            "job-progress",
+            JSON.stringify({
+              userId: job.data.userId.toString(),
+              stage: "processing",
+              processed: totalProcessed,
+              fetched: totalFetched,
+            }),
+          );
+        }
+      })();
+
+      trackTask(task);
+
+      // 🔥 LIMIT CONCURRENCY
+      if (runningTasks.size >= 3) {
+        await Promise.race(runningTasks);
+      }
+    }
+
+    // 🔥 WAIT FOR REMAINING TASKS
+    await Promise.all(runningTasks);
 
     console.log("📊 JOB COMPLETE", {
       traceId,

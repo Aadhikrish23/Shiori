@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect,  useState } from "react";
 import { useSchedule } from "./useSchedule";
 
 interface Schedule {
@@ -10,7 +10,7 @@ interface Schedule {
   lastScheduledRunAt?: string | null;
 }
 
-export const useScheduler = (fetchStats?: () => Promise<void>) => {
+export const useScheduler = () => {
   const { getSchedule } = useSchedule();
 
   const [schedule, setSchedule] = useState<Schedule | null>(null);
@@ -89,42 +89,37 @@ export const useScheduler = (fetchStats?: () => Promise<void>) => {
 
         if (!hasTriggered) {
           setHasTriggered(true);
-
-          // 🔥 force refresh after cron likely finishes
           setTimeout(async () => {
             await refreshNextRun();
-            if (fetchStats) {
-              await fetchStats();
-            }
             setHasTriggered(false);
-          }, 5000); // adjust if needed
+          }, 5000);
         }
 
         return;
       }
 
       // 🔥 CALCULATION LOGIC
-    const diffSecs = Math.floor(diff / 1000);
-    const diffMins = Math.floor(diffSecs / 60);
-    const diffHrs = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHrs / 24);
+      const diffSecs = Math.floor(diff / 1000);
+      const diffMins = Math.floor(diffSecs / 60);
+      const diffHrs = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHrs / 24);
 
-    if (diffDays > 0) {
-      // e.g., "2d 4h"
-      const remainingHrs = diffHrs % 24;
-      setRemaining(`${diffDays}d ${remainingHrs}h`);
-    } else if (diffHrs > 0) {
-      // e.g., "5h 30m"
-      const remainingMins = diffMins % 60;
-      setRemaining(`${diffHrs}h ${remainingMins}m`);
-    } else if (diffMins > 0) {
-      // e.g., "15m 30s"
-      const remainingSecs = diffSecs % 60;
-      setRemaining(`${diffMins}m ${remainingSecs}s`);
-    } else {
-      // e.g., "45s"
-      setRemaining(`${diffSecs}s`);
-    }
+      if (diffDays > 0) {
+        // e.g., "2d 4h"
+        const remainingHrs = diffHrs % 24;
+        setRemaining(`${diffDays}d ${remainingHrs}h`);
+      } else if (diffHrs > 0) {
+        // e.g., "5h 30m"
+        const remainingMins = diffMins % 60;
+        setRemaining(`${diffHrs}h ${remainingMins}m`);
+      } else if (diffMins > 0) {
+        // e.g., "15m 30s"
+        const remainingSecs = diffSecs % 60;
+        setRemaining(`${diffMins}m ${remainingSecs}s`);
+      } else {
+        // e.g., "45s"
+        setRemaining(`${diffSecs}s`);
+      }
     }, 1000);
 
     return () => clearInterval(interval);
@@ -146,7 +141,6 @@ export const useScheduler = (fetchStats?: () => Promise<void>) => {
       const next = getNextRun(data);
       setNextRun(next);
       setHasTriggered(false);
-      fetchStats;
     }, 10000); // every 10 sec
 
     return () => clearInterval(interval);

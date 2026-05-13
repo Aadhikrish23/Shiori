@@ -1,5 +1,5 @@
 import Layout from "../../../shared/ui/layout/Layout";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEmailList } from "../hooks/useEmailList";
 import { useEmail } from "../hooks/useEmail";
 import { useSchedule } from "../hooks/useSchedule";
@@ -19,9 +19,9 @@ import Scheduler from "../components/Scheduler";
 const Emails = () => {
   const { emails, pagination, loading, fetchEmails, setEmails } =
     useEmailList();
-  const { stats, fetchStats, job, fetchJobStatus, processBulk } = useEmail();
+  const { stats, fetchStats, job,  processBulk } = useEmail();
   const { nextRun, remaining, refreshNextRun, formatNextRun } =
-    useScheduler(fetchStats);
+    useScheduler();
   const { saveSchedule, getSchedule } = useSchedule();
   const [selectedEmail, setSelectedEmail] = useState<any>(null);
 
@@ -56,9 +56,12 @@ const Emails = () => {
   // INITIAL LOAD
   // =========================
   useEffect(() => {
-    fetchEmails(filters);
-  }, [filters]);
+    const t = setTimeout(() => {
+      fetchEmails(filters);
+    }, 300);
 
+    return () => clearTimeout(t);
+  }, [filters]);
   useEffect(() => {
     fetchStats();
   }, []);
@@ -109,11 +112,19 @@ const Emails = () => {
   // =========================
   // 🔥 REFRESH AFTER COMPLETE
   // =========================
+  const [hasRefetched, setHasRefetched] = useState(false);
+
   useEffect(() => {
-    if (job?.status === "completed") {
+    if (job?.status === "completed" && !hasRefetched) {
+      setHasRefetched(true);
+
       fetchEmails(filters);
       fetchStats();
-      refreshNextRun(); // 🔥 important
+      refreshNextRun();
+    }
+
+    if (job?.status !== "completed") {
+      setHasRefetched(false);
     }
   }, [job?.status]);
 
@@ -139,13 +150,13 @@ const Emails = () => {
           payload.intervalMinutes = unit === "hours" ? value * 60 : value;
         }
 
-       if (mode === "daily") {
-  payload.dailyInterval = dailyInterval;
-  payload.dailyTime = time;
+        if (mode === "daily") {
+          payload.dailyInterval = dailyInterval;
+          payload.dailyTime = time;
 
-  // 🔥 IMPORTANT: also send intervalMinutes
-  payload.intervalMinutes = dailyInterval * 24 * 60;
-}
+          // 🔥 IMPORTANT: also send intervalMinutes
+          payload.intervalMinutes = dailyInterval * 24 * 60;
+        }
 
         await saveSchedule(payload);
 
@@ -159,7 +170,7 @@ const Emails = () => {
     return () => clearTimeout(timeout);
   }, [enabled, mode, unit, value, dailyInterval, time, initialized]);
 
-  const handleEmailClick = async (email: any) => {
+  const handleEmailClick = useCallback(async (email: any) => {
     setSelectedEmail({ ...email, loading: true });
 
     try {
@@ -176,8 +187,26 @@ const Emails = () => {
         loading: false,
       });
     }
-  };
+  }, []);
+  const emailListUI = useMemo(() => {
+    if (loading) {
+      return (
+        <div className="p-6 space-y-3 animate-pulse">
+          <div className="h-4 bg-[var(--border)] rounded w-1/3" />
+          <div className="h-4 bg-[var(--border)] rounded w-1/2" />
+          <div className="h-4 bg-[var(--border)] rounded w-full" />
+        </div>
+      );
+    }
 
+    if (emails.length === 0) {
+      return <p className="p-6 text-[var(--muted)]">No emails found</p>;
+    }
+
+    return emails.map((email) => (
+      <EmailRow key={email._id} email={email} onClick={handleEmailClick} />
+    ));
+  }, [emails, loading, handleEmailClick]);
   // =========================
   // UI
   // =========================
@@ -313,7 +342,6 @@ const Emails = () => {
               setDailyInterval={setDailyInterval}
               time={time}
               setTime={setTime}
-              
             />
           </div>
         </div>
@@ -355,33 +383,9 @@ const Emails = () => {
         />
 
         {/* LIST */}
-        <div
-          className="
-  rounded-xl border border-[var(--border)]z
-  bg-[var(--card)]
-  overflow-hidden
-  shadow-sm
-"
-        >
-          {loading ? (
-            <div className="p-6 space-y-3 animate-pulse">
-              <div className="h-4 bg-[var(--border)] rounded w-1/3" />
-              <div className="h-4 bg-[var(--border)] rounded w-1/2" />
-              <div className="h-4 bg-[var(--border)] rounded w-full" />
-            </div>
-          ) : emails.length === 0 ? (
-            <p className="p-6 text-[var(--muted)]">No emails found</p>
-          ) : (
-            emails.map((email) => (
-              <EmailRow
-                key={email._id}
-                email={email}
-                onClick={handleEmailClick}
-              />
-            ))
-          )}
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden shadow-sm">
+          {emailListUI}
         </div>
-
         <Pagination
           pagination={pagination}
           onPageChange={(page) => setFilters({ ...filters, page })}

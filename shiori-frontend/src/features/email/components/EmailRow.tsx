@@ -1,5 +1,6 @@
 // File: src/features/email/components/EmailRow.tsx
 
+import React from "react";
 import Badge from "../../../shared/ui/components/Badge";
 
 const EmailRow = ({ email, onClick }: any) => {
@@ -50,4 +51,4 @@ const EmailRow = ({ email, onClick }: any) => {
   );
 };
 
-export default EmailRow;
+export default React.memo(EmailRow);
